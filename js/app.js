@@ -7,6 +7,7 @@
   'use strict';
 
   var data = global.MindForgeData;
+  var history = global.MindForgeHistory;
 
   if (!data) {
     return;
@@ -112,8 +113,122 @@
     return svg;
   }
 
-  function computeStats() {
-    var sessions = data.sessions;
+  function getRecords() {
+    return history ? history.all() : [];
+  }
+
+  function scoreForRecord(record) {
+    var questions = record.quiz.questions;
+    var answers =
+      record.progress && record.progress.quiz && record.progress.quiz.answers
+        ? record.progress.quiz.answers
+        : {};
+    var answered = 0;
+    var correct = 0;
+
+    questions.forEach(function (question) {
+      if (!Object.prototype.hasOwnProperty.call(answers, question.id)) {
+        return;
+      }
+
+      answered += 1;
+
+      if (answers[question.id] === question.answerIndex) {
+        correct += 1;
+      }
+    });
+
+    return {
+      answered: answered,
+      correct: correct,
+      total: questions.length,
+      percent: questions.length ? Math.round((correct / questions.length) * 100) : 0,
+      complete: answered === questions.length
+    };
+  }
+
+  function masteryForRecord(record) {
+    var known =
+      record.progress && record.progress.flashcards && record.progress.flashcards.known
+        ? record.progress.flashcards.known
+        : [];
+    var valid = Object.create(null);
+
+    record.flashcards.forEach(function (card) {
+      valid[card.id] = true;
+    });
+
+    return {
+      known: known.filter(function (id) {
+        return valid[id];
+      }).length,
+      total: record.flashcards.length
+    };
+  }
+
+  function daysAgoFromDate(value) {
+    var date = new Date(value);
+
+    if (isNaN(date.getTime())) {
+      return 0;
+    }
+
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+
+    return Math.max(0, Math.round((today.getTime() - date.getTime()) / DAY_MS));
+  }
+
+  function recordToSession(record) {
+    var score = scoreForRecord(record);
+    var mastery = masteryForRecord(record);
+
+    return {
+      id: record.id,
+      title: record.summary.title || record.topic,
+      subject: 'Local session',
+      type: 'Quiz',
+      daysAgo: daysAgoFromDate(record.createdAt),
+      date: record.createdAt,
+      duration: record.summary.estimatedMinutes || 0,
+      cardsGained: mastery.known,
+      score: score.answered ? score.percent : null,
+      savedRecord: record
+    };
+  }
+
+  function mergedSessions(records) {
+    return data.sessions.concat(records.map(recordToSession));
+  }
+
+  function activityWithSaved(records) {
+    var byDay = Object.create(null);
+
+    data.activity.forEach(function (day) {
+      byDay[day.daysAgo] = day.minutes;
+    });
+
+    records.forEach(function (record) {
+      var day = daysAgoFromDate(record.createdAt);
+
+      if (day > 13) {
+        return;
+      }
+
+      byDay[day] = (byDay[day] || 0) + (record.summary.estimatedMinutes || 0);
+    });
+
+    return Object.keys(byDay).map(function (day) {
+      return {
+        daysAgo: Number(day),
+        minutes: byDay[day]
+      };
+    });
+  }
+
+  function computeStats(records, activity) {
+    var sessions = mergedSessions(records);
     var quizzes = sessions.filter(function (session) {
       return typeof session.score === 'number';
     });
@@ -123,10 +238,10 @@
     var weekSessions = sessions.filter(function (session) {
       return session.daysAgo <= 6;
     });
-    var weekActivity = data.activity.filter(function (day) {
+    var weekActivity = activity.filter(function (day) {
       return day.daysAgo <= 6;
     });
-    var previousActivity = data.activity.filter(function (day) {
+    var previousActivity = activity.filter(function (day) {
       return day.daysAgo >= 7 && day.daysAgo <= 13;
     });
     var minutesThisWeek = sum(
@@ -149,6 +264,12 @@
         return deck.total;
       })
     );
+
+    records.forEach(function (record) {
+      var mastery = masteryForRecord(record);
+      mastered += mastery.known;
+      totalCards += mastery.total;
+    });
 
     return {
       totalSessions: sessions.length,
@@ -275,8 +396,8 @@
     }
   }
 
-  function renderTodayFocus() {
-    var today = data.activity.find(function (day) {
+  function renderTodayFocus(activity) {
+    var today = activity.find(function (day) {
       return day.daysAgo === 0;
     });
     var minutes = today ? today.minutes : 0;
@@ -308,9 +429,9 @@
     }
   }
 
-  function renderActivity(stats) {
+  function renderActivity(stats, activity) {
     var chart = $('[data-activity-chart]');
-    var days = data.activity
+    var days = activity
       .filter(function (day) {
         return day.daysAgo <= 6;
       })
@@ -575,8 +696,120 @@
     return item;
   }
 
-  function renderSessionLists() {
-    var sorted = data.sessions.slice().sort(function (a, b) {
+  function createSavedRow(record) {
+    var item = document.createElement('li');
+    var score = scoreForRecord(record);
+    var mastery = masteryForRecord(record);
+    var daysAgo = daysAgoFromDate(record.createdAt);
+
+    item.className = 'saved-row';
+    item.setAttribute('data-saved-id', record.id);
+
+    var badge = document.createElement('span');
+    badge.className = 'type-badge type-badge--quiz';
+    badge.setAttribute('aria-hidden', 'true');
+    badge.appendChild(createIcon('spark'));
+
+    var main = document.createElement('div');
+    main.className = 'saved-row__main';
+
+    var title = document.createElement('p');
+    title.className = 'saved-row__title';
+    title.textContent = record.summary.title || record.topic;
+
+    var meta = document.createElement('p');
+    meta.className = 'saved-row__meta';
+
+    var date = document.createElement('time');
+    date.dateTime = record.createdAt;
+    date.title = dateFormatter.format(new Date(record.createdAt));
+    date.textContent = relativeDay(daysAgo);
+
+    var separator = document.createElement('span');
+    separator.className = 'meta-sep';
+    separator.setAttribute('aria-hidden', 'true');
+    separator.textContent = '·';
+
+    var config = document.createElement('span');
+    config.textContent =
+      record.config.answerStyleLabel + ' · ' + record.config.difficultyLabel;
+
+    var separatorTwo = separator.cloneNode(true);
+
+    var type = document.createElement('span');
+    type.textContent = 'Saved generation';
+
+    meta.appendChild(date);
+    meta.appendChild(separator);
+    meta.appendChild(config);
+    meta.appendChild(separatorTwo);
+    meta.appendChild(type);
+
+    main.appendChild(title);
+    main.appendChild(meta);
+
+    var metrics = document.createElement('div');
+    metrics.className = 'saved-row__metrics';
+
+    var outcome = document.createElement('span');
+    outcome.className = 'result-pill';
+
+    if (score.answered) {
+      outcome.classList.add('result-pill--score');
+      outcome.textContent = score.percent + '%';
+      var scoreLabel = document.createElement('span');
+      scoreLabel.className = 'sr-only';
+      scoreLabel.textContent = ' quiz score';
+      outcome.appendChild(scoreLabel);
+    } else {
+      outcome.classList.add('result-pill--complete');
+      outcome.textContent = 'Not started';
+    }
+
+    var masteryLabel = document.createElement('span');
+    masteryLabel.className = 'saved-row__mastery';
+    masteryLabel.textContent = mastery.known + ' of ' + mastery.total + ' cards known';
+
+    metrics.appendChild(outcome);
+    metrics.appendChild(masteryLabel);
+
+    var actions = document.createElement('div');
+    actions.className = 'saved-row__actions';
+
+    var openButton = document.createElement('button');
+    openButton.className = 'btn btn--secondary btn--sm';
+    openButton.type = 'button';
+    openButton.setAttribute('data-saved-open', record.id);
+    openButton.setAttribute('aria-label', 'Open ' + record.summary.title);
+    openButton.textContent = 'Open';
+
+    var deleteButton = document.createElement('button');
+    deleteButton.className = 'btn btn--quiet btn--sm saved-row__delete';
+    deleteButton.type = 'button';
+    deleteButton.setAttribute('data-saved-delete', record.id);
+    deleteButton.setAttribute(
+      'aria-label',
+      'Delete ' + record.summary.title + ' from History'
+    );
+    deleteButton.appendChild(createIcon('trash', 'icon--small'));
+    var deleteLabel = document.createElement('span');
+    deleteLabel.textContent = 'Delete';
+    deleteButton.appendChild(deleteLabel);
+
+    actions.appendChild(openButton);
+    actions.appendChild(deleteButton);
+
+    item.appendChild(badge);
+    item.appendChild(main);
+    item.appendChild(metrics);
+    item.appendChild(actions);
+
+    return item;
+  }
+
+  function renderSessionLists(records) {
+    var sessions = mergedSessions(records);
+    var sorted = sessions.slice().sort(function (a, b) {
       return new Date(b.date) - new Date(a.date);
     });
     var recentList = $('[data-recent-sessions]');
@@ -592,10 +825,197 @@
 
     if (historyList) {
       historyList.innerHTML = '';
-      sorted.forEach(function (session) {
-        historyList.appendChild(createSessionRow(session));
-      });
+      data.sessions
+        .slice()
+        .sort(function (a, b) {
+          return new Date(b.date) - new Date(a.date);
+        })
+        .forEach(function (session) {
+          historyList.appendChild(createSessionRow(session));
+        });
     }
+  }
+
+  function renderSavedGenerations(records) {
+    var list = $('[data-saved-generations]');
+    var empty = $('[data-saved-empty]');
+    var count = $('[data-saved-count]');
+
+    if (count) {
+      count.textContent = records.length + ' saved';
+    }
+
+    if (empty) {
+      empty.hidden = records.length > 0;
+    }
+
+    if (!list) {
+      return;
+    }
+
+    list.innerHTML = '';
+    records.forEach(function (record) {
+      list.appendChild(createSavedRow(record));
+    });
+  }
+
+  function createProgressRow(record) {
+    var score = scoreForRecord(record);
+    var mastery = masteryForRecord(record);
+    var item = document.createElement('li');
+    item.className = 'progress-saved-row';
+
+    var main = document.createElement('div');
+    main.className = 'progress-saved-row__main';
+
+    var title = document.createElement('strong');
+    title.textContent = record.summary.title || record.topic;
+
+    var meta = document.createElement('span');
+    meta.textContent =
+      relativeDay(daysAgoFromDate(record.createdAt)) +
+      ' · ' +
+      (score.answered ? score.percent + '% quiz' : 'Quiz not started');
+
+    main.appendChild(title);
+    main.appendChild(meta);
+
+    var cards = document.createElement('span');
+    cards.className = 'progress-saved-row__cards';
+    cards.textContent = mastery.known + ' of ' + mastery.total + ' cards known';
+
+    item.appendChild(main);
+    item.appendChild(cards);
+
+    return item;
+  }
+
+  function renderProgress(records) {
+    var count = records.length;
+    var answeredQuizzes = 0;
+    var scoreTotal = 0;
+    var answeredQuestions = 0;
+    var knownCards = 0;
+    var totalCards = 0;
+    var topics = Object.create(null);
+    var quizAverage = null;
+
+    records.forEach(function (record) {
+      var score = scoreForRecord(record);
+      var mastery = masteryForRecord(record);
+
+      answeredQuestions += score.answered;
+      knownCards += mastery.known;
+      totalCards += mastery.total;
+      topics[record.topic] = true;
+
+      if (score.answered) {
+        answeredQuizzes += 1;
+        scoreTotal += score.percent;
+      }
+    });
+
+    if (answeredQuizzes) {
+      quizAverage = Math.round(scoreTotal / answeredQuizzes);
+    }
+
+    var status = $('[data-progress-status]');
+    if (status) {
+      status.textContent = count ? 'Live from saved data' : 'No saved data yet';
+    }
+
+    var summary = $('[data-progress-summary]');
+    if (summary) {
+      summary.textContent = count
+        ? 'You have saved ' +
+          count +
+          (count === 1 ? ' generation' : ' generations') +
+          '. Those decisions have produced ' +
+          answeredQuestions +
+          ' answered quiz ' +
+          (answeredQuestions === 1 ? 'question' : 'questions') +
+          ' and ' +
+          knownCards +
+          ' known ' +
+          (knownCards === 1 ? 'card' : 'cards') +
+          ' — a small, honest record of what is sticking.'
+        : 'Answer a few quiz questions and mark flashcards as known. This space turns those saved decisions into a picture of what is sticking.';
+    }
+
+    var generationsLine = $('[data-progress-line="generations"]');
+    if (generationsLine) {
+      generationsLine.textContent = count;
+    }
+
+    var answeredLine = $('[data-progress-line="answered"]');
+    if (answeredLine) {
+      answeredLine.textContent = answeredQuestions;
+    }
+
+    var cardsLine = $('[data-progress-line="cards"]');
+    if (cardsLine) {
+      cardsLine.textContent = knownCards + ' / ' + totalCards;
+    }
+
+    var average = $('[data-progress="quiz-average"]');
+    if (average) {
+      average.textContent = quizAverage === null ? '—' : quizAverage + '%';
+    }
+
+    var quizNote = $('[data-progress-note="quiz"]');
+    if (quizNote) {
+      quizNote.textContent = answeredQuizzes
+        ? 'From ' +
+          answeredQuizzes +
+          ' saved quiz ' +
+          (answeredQuizzes === 1 ? 'attempt' : 'attempts') +
+          '.'
+        : 'Take a quiz to start a saved average.';
+    }
+
+    var cards = $('[data-progress="cards"]');
+    if (cards) {
+      cards.textContent = knownCards;
+    }
+
+    var cardsNote = $('[data-progress-note="cards"]');
+    if (cardsNote) {
+      cardsNote.textContent = totalCards
+        ? knownCards + ' of ' + totalCards + ' saved cards marked known.'
+        : 'No saved cards yet.';
+    }
+
+    var topicCount = $('[data-progress="topics"]');
+    if (topicCount) {
+      topicCount.textContent = Object.keys(topics).length;
+    }
+
+    var topicsNote = $('[data-progress-note="topics"]');
+    if (topicsNote) {
+      topicsNote.textContent = count
+        ? 'Across ' + count + ' saved ' + (count === 1 ? 'generation' : 'generations') + '.'
+        : 'Your saved topics will collect here.';
+    }
+
+    var progressCount = $('[data-progress-count]');
+    if (progressCount) {
+      progressCount.textContent = count + ' saved';
+    }
+
+    var empty = $('[data-progress-empty]');
+    if (empty) {
+      empty.hidden = count > 0;
+    }
+
+    var list = $('[data-progress-sessions]');
+    if (!list) {
+      return;
+    }
+
+    list.innerHTML = '';
+    records.forEach(function (record) {
+      list.appendChild(createProgressRow(record));
+    });
   }
 
   function renderHistorySummary(stats) {
@@ -638,25 +1058,98 @@
     }, 4500);
   }
 
+  function openSavedGeneration(id) {
+    var record = history ? history.get(id) : null;
+
+    if (!record) {
+      showToast('That saved session is no longer available.');
+      renderAll();
+      return;
+    }
+
+    if (global.MindForgeNavigation) {
+      global.MindForgeNavigation.goTo('workspace');
+    }
+
+    if (global.MindForgeWorkspace && global.MindForgeWorkspace.openSaved) {
+      if (global.MindForgeWorkspace.openSaved(record)) {
+        showToast('Reopened “' + record.summary.title + '” from History.');
+      }
+    } else {
+      showToast('The Study Workspace is not available right now.');
+    }
+  }
+
+  function deleteSavedGeneration(id) {
+    if (!history) {
+      showToast('History is not available in this browser.');
+      return;
+    }
+
+    var record = history.get(id);
+    var outcome = history.remove(id);
+
+    if (!outcome || !outcome.ok) {
+      showToast('That saved session could not be deleted. Please try again.');
+      return;
+    }
+
+    showToast(
+      'Removed “' +
+        (record ? record.summary.title : 'saved session') +
+        '” from History.'
+    );
+  }
+
   function bindActions() {
     document.addEventListener('click', function (event) {
-      var trigger = event.target.closest('[data-action="create-session"]');
+      var target = event.target;
 
-      if (!trigger) {
+      if (!target || typeof target.closest !== 'function') {
         return;
       }
 
-      event.preventDefault();
+      var createTrigger = target.closest('[data-action="create-session"]');
 
-      if (global.MindForgeNavigation) {
-        global.MindForgeNavigation.goTo('workspace');
+      if (createTrigger) {
+        event.preventDefault();
+
+        if (global.MindForgeNavigation) {
+          global.MindForgeNavigation.goTo('workspace');
+        }
+
+        if (global.MindForgeWorkspace) {
+          global.MindForgeWorkspace.focusTopic();
+        }
+
+        showToast('The forge is ready — start with a topic and a few notes.');
+        return;
       }
 
-      if (global.MindForgeWorkspace) {
-        global.MindForgeWorkspace.focusTopic();
+      var openTrigger = target.closest('[data-saved-open]');
+
+      if (openTrigger) {
+        event.preventDefault();
+        openSavedGeneration(openTrigger.getAttribute('data-saved-open'));
+        return;
       }
 
-      showToast('The forge is ready — start with a topic and a few notes.');
+      var deleteTrigger = target.closest('[data-saved-delete]');
+
+      if (deleteTrigger) {
+        event.preventDefault();
+        deleteSavedGeneration(deleteTrigger.getAttribute('data-saved-delete'));
+      }
+    });
+
+    document.addEventListener('mindforge:notice', function (event) {
+      if (event.detail && event.detail.message) {
+        showToast(event.detail.message);
+      }
+    });
+
+    document.addEventListener('mindforge:historychange', function () {
+      renderAll();
     });
 
     var year = $('[data-year]');
@@ -665,17 +1158,25 @@
     }
   }
 
-  function init() {
-    var stats = computeStats();
+  function renderAll() {
+    var records = getRecords();
+    var activity = activityWithSaved(records);
+    var stats = computeStats(records, activity);
 
     renderStats(stats);
     renderWelcome(stats);
-    renderTodayFocus();
-    renderActivity(stats);
+    renderTodayFocus(activity);
+    renderActivity(stats, activity);
     renderGoal(stats);
-    renderSessionLists();
+    renderSessionLists(records);
     renderHistorySummary(stats);
+    renderSavedGenerations(records);
+    renderProgress(records);
+  }
+
+  function init() {
     bindActions();
+    renderAll();
 
     document.documentElement.setAttribute('data-ready', 'true');
   }

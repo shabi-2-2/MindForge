@@ -59,9 +59,9 @@
   };
 
   var DIFFICULTIES = {
-    easy: { label: 'Easy', questions: 3, cards: 4 },
-    medium: { label: 'Medium', questions: 4, cards: 5 },
-    hard: { label: 'Hard', questions: 5, cards: 6 }
+    easy: { label: 'Easy', questions: 5, cards: 4, minutes: 0 },
+    medium: { label: 'Medium', questions: 5, cards: 5, minutes: 2 },
+    hard: { label: 'Hard', questions: 5, cards: 6, minutes: 4 }
   };
 
   var SMALL_WORDS = {
@@ -361,7 +361,7 @@
   function buildSummary(topic, notes, styleKey, difficultyKey, insights) {
     var style = STYLE_PROFILES[styleKey];
     var difficulty = DIFFICULTIES[difficultyKey];
-    var estimatedMinutes = style.minutes + (difficulty.questions - 3) * 2;
+    var estimatedMinutes = style.minutes + difficulty.minutes;
 
     if (notes.length > 900) {
       estimatedMinutes += 3;
@@ -497,7 +497,7 @@
       flashcards: buildFlashcards(topic, summary.overview, insights, difficultyKey),
       meta: {
         generator: 'local-mock',
-        version: 1,
+        version: 2,
         characters: {
           topic: topic.length,
           notes: notes.length

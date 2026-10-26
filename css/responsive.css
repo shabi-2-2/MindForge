@@ -144,6 +144,35 @@
   .settings-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .saved-row {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "badge main actions"
+      "badge metrics actions";
+    gap: 4px var(--space-3);
+  }
+
+  .saved-row > .type-badge {
+    grid-area: badge;
+    align-self: start;
+  }
+
+  .saved-row__main {
+    grid-area: main;
+  }
+
+  .saved-row__metrics {
+    grid-area: metrics;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .saved-row__actions {
+    grid-area: actions;
+  }
 }
 
 /* Small tablets and landscape phones. */
@@ -240,6 +269,29 @@
   .result-panel--wide {
     grid-column: auto;
   }
+
+  .study-result-panel__head {
+    flex-wrap: wrap;
+  }
+
+  .study-tab {
+    gap: 5px;
+    padding: 0 10px;
+  }
+
+  .study-tab__count {
+    display: none;
+  }
+
+  .study-result-panel__tools,
+  .quiz-toolbar,
+  .flashcard-toolbar {
+    justify-content: flex-start;
+  }
+
+  .flashcard-deck {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
 }
 
 /* Phones. */
@@ -290,6 +342,71 @@
 
   .topbar__date {
     display: none;
+  }
+
+  .study-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .study-tab {
+    flex-direction: column;
+    min-height: 54px;
+    padding: 7px 4px;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+  }
+
+  .study-tab .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .study-result-panel {
+    padding: var(--space-4);
+  }
+
+  .study-result-panel__head,
+  .study-result-panel__head--quiz {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .study-result-panel__tools,
+  .quiz-toolbar,
+  .flashcard-toolbar {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .flashcard-deck {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .progress-facts {
+    max-width: none;
+  }
+
+  .saved-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-areas:
+      "badge main"
+      "badge metrics"
+      "actions actions";
+    gap: 4px var(--space-3);
+    padding: 13px var(--space-4);
+  }
+
+  .saved-row__actions {
+    justify-content: flex-end;
+    margin-top: 2px;
+  }
+
+  .progress-saved-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 12px var(--space-4);
   }
 }
 
@@ -649,7 +766,14 @@
   }
 
   .study-result__head {
+    align-items: stretch;
     flex-direction: column;
+  }
+
+  .study-result__head-copy,
+  .study-result__title,
+  .study-result__meta {
+    overflow-wrap: anywhere;
   }
 
   .study-result__badge {
@@ -658,6 +782,39 @@
 
   .result-panel {
     padding: var(--space-4);
+  }
+
+  .study-result-panel {
+    padding: var(--space-4);
+  }
+
+  .quiz-question {
+    padding: var(--space-3);
+  }
+
+  .quiz-option__body {
+    padding: 8px 9px;
+  }
+
+  .flashcard__toggle,
+  .flashcard__inner {
+    min-height: 160px;
+  }
+
+  .saved-empty {
+    align-items: flex-start;
+  }
+
+  .saved-empty .btn {
+    width: 100%;
+  }
+
+  .saved-row__actions .btn {
+    flex: 1;
+  }
+
+  .progress-saved-row__cards {
+    white-space: normal;
   }
 }
 
@@ -685,6 +842,31 @@
 
   .choice-grid--compact {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .study-tab {
+    font-size: 9.5px;
+  }
+
+  .study-tab .icon {
+    display: none;
+  }
+
+  .study-result-panel__tools .btn {
+    flex: 1;
+  }
+
+  .quiz-toolbar__score {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .saved-row__actions {
+    flex-wrap: wrap;
+  }
+
+  .saved-row__actions .btn {
+    flex: 1 1 auto;
   }
 
   .toast {

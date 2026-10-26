@@ -1,10 +1,9 @@
 /**
  * MindForge study workspace
  * Owns the study form: live counters, custom validation, duplicate-submission
- * guarding, loading and error states, and a readable preview of the local mock
- * result. The generated result is exposed for Part 3 via
- * window.MindForgeWorkspace.getLastResult() and the
- * `mindforge:studymaterialready` document event.
+ * guarding, loading and error states. Completed mock generations are saved to
+ * MindForgeHistory and handed to MindForgeLearning, which renders the
+ * interactive Summary, Quiz and Flashcards tabs.
  */
 (function (global) {
   'use strict';
@@ -32,18 +31,6 @@
 
   var resultSection = document.getElementById('study-result');
   var resultTitle = resultSection && resultSection.querySelector('[data-result-title]');
-  var resultMeta = resultSection && resultSection.querySelector('[data-result-meta]');
-  var resultOverview = resultSection && resultSection.querySelector('[data-result-overview]');
-  var resultKeyPoints =
-    resultSection && resultSection.querySelector('[data-result-keypoints]');
-  var resultQuiz = resultSection && resultSection.querySelector('[data-result-quiz]');
-  var resultFlashcards =
-    resultSection && resultSection.querySelector('[data-result-flashcards]');
-  var resultTime = resultSection && resultSection.querySelector('[data-result-time]');
-  var resultDifficulty =
-    resultSection && resultSection.querySelector('[data-result-difficulty]');
-  var resultCardCount =
-    resultSection && resultSection.querySelector('[data-result-card-count]');
 
   var reducedMotion = global.matchMedia
     ? global.matchMedia('(prefers-reduced-motion: reduce)')
@@ -55,10 +42,6 @@
 
   function formatNumber(value) {
     return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  }
-
-  function padTwo(value) {
-    return value < 10 ? '0' + value : String(value);
   }
 
   function createIcon(name, className) {
@@ -79,6 +62,14 @@
     spinner.className = 'spinner';
     spinner.setAttribute('aria-hidden', 'true');
     return spinner;
+  }
+
+  function notify(message) {
+    document.dispatchEvent(
+      new CustomEvent('mindforge:notice', {
+        detail: { message: message }
+      })
+    );
   }
 
   function getField(name) {
@@ -285,183 +276,18 @@
         Array.isArray(result.summary.keyPoints) &&
         result.quiz &&
         Array.isArray(result.quiz.questions) &&
+        result.quiz.questions.length > 0 &&
         Array.isArray(result.flashcards) &&
         result.config
     );
   }
 
-  function renderKeyPoints(points) {
-    if (!resultKeyPoints) {
-      return;
+  function renderResult(result, saved) {
+    if (!global.MindForgeLearning) {
+      throw new Error('The interactive result module did not load.');
     }
 
-    resultKeyPoints.textContent = '';
-
-    points.forEach(function (point) {
-      var item = document.createElement('li');
-      var text = document.createElement('span');
-
-      item.appendChild(createIcon('check'));
-      text.textContent = point;
-      item.appendChild(text);
-      resultKeyPoints.appendChild(item);
-    });
-  }
-
-  function renderQuiz(quiz) {
-    if (!resultQuiz) {
-      return;
-    }
-
-    resultQuiz.textContent = '';
-
-    quiz.questions.forEach(function (question, questionIndex) {
-      var item = document.createElement('li');
-      item.className = 'quiz-preview';
-
-      var prompt = document.createElement('p');
-      prompt.className = 'quiz-preview__prompt';
-
-      var number = document.createElement('span');
-      number.className = 'quiz-preview__num';
-      number.textContent = padTwo(questionIndex + 1);
-
-      var promptText = document.createElement('span');
-      promptText.textContent = question.prompt;
-
-      prompt.appendChild(number);
-      prompt.appendChild(promptText);
-      item.appendChild(prompt);
-
-      var options = document.createElement('ol');
-      options.className = 'quiz-preview__options';
-
-      question.options.forEach(function (option, optionIndex) {
-        var optionItem = document.createElement('li');
-        var isCorrect = optionIndex === question.answerIndex;
-
-        optionItem.className =
-          'quiz-preview__option' + (isCorrect ? ' is-correct' : '');
-
-        var letter = document.createElement('span');
-        letter.className = 'quiz-preview__letter';
-        letter.setAttribute('aria-hidden', 'true');
-        letter.textContent = String.fromCharCode(65 + optionIndex);
-
-        var text = document.createElement('span');
-        text.textContent = option;
-
-        optionItem.appendChild(letter);
-        optionItem.appendChild(text);
-
-        if (isCorrect) {
-          var correctLabel = document.createElement('span');
-          correctLabel.className = 'sr-only';
-          correctLabel.textContent = ' Correct answer.';
-          optionItem.appendChild(correctLabel);
-        }
-
-        options.appendChild(optionItem);
-      });
-
-      item.appendChild(options);
-
-      var explanation = document.createElement('p');
-      explanation.className = 'quiz-preview__explain';
-
-      var why = document.createElement('strong');
-      why.textContent = 'Why: ';
-      explanation.appendChild(why);
-      explanation.appendChild(document.createTextNode(question.explanation));
-      item.appendChild(explanation);
-
-      resultQuiz.appendChild(item);
-    });
-  }
-
-  function renderFlashcards(cards) {
-    if (!resultFlashcards) {
-      return;
-    }
-
-    resultFlashcards.textContent = '';
-
-    cards.forEach(function (card, index) {
-      var item = document.createElement('li');
-      item.className = 'flashcard-preview';
-
-      var head = document.createElement('div');
-      head.className = 'flashcard-preview__head';
-
-      var number = document.createElement('span');
-      number.className = 'flashcard-preview__index';
-      number.textContent = padTwo(index + 1);
-
-      var label = document.createElement('span');
-      label.className = 'flashcard-preview__label';
-      label.textContent = 'Card';
-
-      head.appendChild(number);
-      head.appendChild(label);
-
-      var front = document.createElement('p');
-      front.className = 'flashcard-preview__front';
-      front.textContent = card.front;
-
-      var back = document.createElement('p');
-      back.className = 'flashcard-preview__back';
-
-      var backLabel = document.createElement('span');
-      backLabel.className = 'flashcard-preview__back-label';
-      backLabel.textContent = 'Back';
-
-      var backText = document.createElement('span');
-      backText.textContent = card.back;
-
-      back.appendChild(backLabel);
-      back.appendChild(backText);
-
-      item.appendChild(head);
-      item.appendChild(front);
-      item.appendChild(back);
-      resultFlashcards.appendChild(item);
-    });
-  }
-
-  function renderResult(result) {
-    if (resultTitle) {
-      resultTitle.textContent = result.summary.title;
-    }
-
-    if (resultMeta) {
-      resultMeta.textContent = [
-        result.config.answerStyleLabel,
-        result.config.difficultyLabel + ' difficulty',
-        result.quiz.questions.length + ' questions',
-        result.flashcards.length + ' flashcards',
-        'about ' + result.summary.estimatedMinutes + ' min'
-      ].join(' · ');
-    }
-
-    if (resultOverview) {
-      resultOverview.textContent = result.summary.overview;
-    }
-
-    if (resultTime) {
-      resultTime.textContent = '~' + result.summary.estimatedMinutes + ' min';
-    }
-
-    if (resultDifficulty) {
-      resultDifficulty.textContent = result.config.difficultyLabel;
-    }
-
-    if (resultCardCount) {
-      resultCardCount.textContent = result.flashcards.length + ' cards';
-    }
-
-    renderKeyPoints(result.summary.keyPoints);
-    renderQuiz(result.quiz);
-    renderFlashcards(result.flashcards);
+    global.MindForgeLearning.render(result, { saved: Boolean(saved) });
 
     if (resultSection) {
       resultSection.hidden = false;
@@ -469,10 +295,6 @@
   }
 
   function revealResult() {
-    if (!resultSection) {
-      return;
-    }
-
     if (resultTitle) {
       try {
         resultTitle.focus({ preventScroll: true });
@@ -481,7 +303,9 @@
       }
     }
 
-    if (resultSection.scrollIntoView) {
+    if (global.MindForgeLearning) {
+      global.MindForgeLearning.reveal();
+    } else if (resultSection && resultSection.scrollIntoView) {
       var behavior = reducedMotion && reducedMotion.matches ? 'auto' : 'smooth';
       resultSection.scrollIntoView({ behavior: behavior, block: 'start' });
     }
@@ -539,22 +363,41 @@
           throw new Error('The generator returned an incomplete result.');
         }
 
-        lastResult = result;
+        var saveResult = null;
+
+        if (global.MindForgeHistory) {
+          saveResult = global.MindForgeHistory.save(result);
+        }
+
+        var saved = Boolean(saveResult && saveResult.ok);
+        var record = saveResult && saveResult.record ? saveResult.record : result;
+
+        lastResult = record;
         setGenerating(false);
-        renderResult(result);
+        renderResult(record, saved);
+        revealResult();
         showStatus(
           'Study material ready — ' +
-            result.quiz.questions.length +
+            record.quiz.questions.length +
             ' questions and ' +
-            result.flashcards.length +
-            ' flashcards generated locally.',
+            record.flashcards.length +
+            (saved
+              ? ' flashcards. Saved to History.'
+              : ' flashcards generated locally.'),
           'success'
         );
-        revealResult();
+
+        if (!saved) {
+          notify('Generated locally, but History could not be saved in this browser.');
+        }
 
         document.dispatchEvent(
           new CustomEvent('mindforge:studymaterialready', {
-            detail: { result: result }
+            detail: {
+              result: record,
+              saved: saved,
+              reopened: false
+            }
           })
         );
       })
@@ -567,19 +410,50 @@
       });
   }
 
-  function focusTopic() {
-    var focus = function () {
-      try {
-        topicInput.focus({ preventScroll: true });
-      } catch (error) {
-        topicInput.focus();
-      }
-    };
+  function openSaved(record) {
+    if (!isStructuredResult(record)) {
+      showGenerationError(
+        'That saved session is incomplete or damaged. Try another entry in History.'
+      );
+      return false;
+    }
 
-    if (global.requestAnimationFrame) {
-      global.requestAnimationFrame(focus);
-    } else {
-      global.setTimeout(focus, 0);
+    if (!global.MindForgeLearning) {
+      showGenerationError(
+        'The interactive result module did not load. Refresh the page and try again.'
+      );
+      return false;
+    }
+
+    lastResult = record;
+    setGenerating(false);
+    clearGenerationError();
+    hideStatus();
+    renderResult(record, true);
+    showStatus(
+      'Reopened “' + record.summary.title + '” from History. Your progress is restored.',
+      'success'
+    );
+    revealResult();
+
+    document.dispatchEvent(
+      new CustomEvent('mindforge:studymaterialready', {
+        detail: {
+          result: record,
+          saved: true,
+          reopened: true
+        }
+      })
+    );
+
+    return true;
+  }
+
+  function focusTopic() {
+    try {
+      topicInput.focus({ preventScroll: true });
+    } catch (error) {
+      topicInput.focus();
     }
   }
 
@@ -601,6 +475,7 @@
     getLastResult: function () {
       return lastResult;
     },
+    openSaved: openSaved,
     focusTopic: focusTopic
   });
 

@@ -135,6 +135,30 @@
       <path d="M12 7.5v5.5"></path>
       <path d="M12 16.5h.01"></path>
     </symbol>
+    <symbol id="icon-copy" viewBox="0 0 24 24">
+      <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24">
+      <path d="M12 3v12"></path>
+      <path d="m7 10 5 5 5-5"></path>
+      <path d="M5 21h14"></path>
+    </symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24">
+      <path d="M3 6h18"></path>
+      <path d="M8 6V4h8v2"></path>
+      <path d="m19 6-1 14H6L5 6"></path>
+      <path d="M10 11v5"></path>
+      <path d="M14 11v5"></path>
+    </symbol>
+    <symbol id="icon-rotate" viewBox="0 0 24 24">
+      <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+      <path d="M3 4v5h5"></path>
+    </symbol>
+    <symbol id="icon-eye" viewBox="0 0 24 24">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path>
+      <circle cx="12" cy="12" r="3"></circle>
+    </symbol>
   </svg>
 
   <div class="app-shell">
@@ -514,14 +538,14 @@
 
                 <fieldset class="choice-group">
                   <legend class="choice-group__legend">Quiz difficulty</legend>
-                  <p class="choice-group__hint">Sets how many prompts and cards you receive.</p>
+                  <p class="choice-group__hint">Every quiz has five questions; difficulty sets the challenge and card count.</p>
                   <div class="choice-grid choice-grid--compact">
                     <label class="choice-card choice-card--compact">
                       <input class="sr-only" type="radio" name="quiz-difficulty" value="easy">
                       <span class="choice-card__body">
                         <span class="choice-card__copy">
                           <strong>Easy</strong>
-                          <span>3 questions · 4 cards</span>
+                          <span>5 questions · 4 cards</span>
                         </span>
                         <span class="choice-card__check" aria-hidden="true">
                           <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
@@ -534,7 +558,7 @@
                       <span class="choice-card__body">
                         <span class="choice-card__copy">
                           <strong>Medium</strong>
-                          <span>4 questions · 5 cards</span>
+                          <span>5 questions · 5 cards</span>
                         </span>
                         <span class="choice-card__check" aria-hidden="true">
                           <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
@@ -603,7 +627,7 @@
                   <span class="method-card__tag">Included</span>
                 </div>
                 <h3>Retrieval quizzes</h3>
-                <p>Short checks shaped by your difficulty choice, with answers and reasoning you can review.</p>
+                <p>Five scored checks shaped by your difficulty choice, with answers and reasoning after every question.</p>
               </article>
 
               <article class="card method-card">
@@ -614,7 +638,7 @@
                   <span class="method-card__tag">Included</span>
                 </div>
                 <h3>Study flashcards</h3>
-                <p>Cards built from your notes, ready for interactive review when Part 3 arrives.</p>
+                <p>Flip each card, reveal the answer, then mark what you know to track mastery.</p>
               </article>
             </div>
           </div>
@@ -622,44 +646,102 @@
           <section class="card study-result" id="study-result" aria-labelledby="study-result-title" hidden>
             <header class="study-result__head">
               <div class="study-result__head-copy">
-                <p class="card__eyebrow">Session preview</p>
+                <p class="card__eyebrow">Session ready</p>
                 <h2 class="study-result__title" id="study-result-title" tabindex="-1" data-result-title>—</h2>
                 <p class="study-result__meta" data-result-meta>—</p>
               </div>
               <span class="study-result__badge">
                 <svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg>
-                Generated locally
+                <span data-result-save-state>Saved locally</span>
               </span>
             </header>
 
-            <div class="study-result__grid">
-              <article class="result-panel" aria-labelledby="result-summary-title">
-                <div class="result-panel__head">
-                  <h3 id="result-summary-title">Summary</h3>
-                  <span class="card__tag" data-result-time>—</span>
-                </div>
-                <p class="result-panel__lead" data-result-overview>—</p>
-                <ul class="result-points" data-result-keypoints aria-label="Key points"></ul>
-              </article>
-
-              <article class="result-panel" aria-labelledby="result-quiz-title">
-                <div class="result-panel__head">
-                  <h3 id="result-quiz-title">Retrieval check</h3>
-                  <span class="card__tag" data-result-difficulty>—</span>
-                </div>
-                <ol class="result-quiz" data-result-quiz></ol>
-              </article>
-
-              <article class="result-panel result-panel--wide" aria-labelledby="result-cards-title">
-                <div class="result-panel__head">
-                  <h3 id="result-cards-title">Flashcards</h3>
-                  <span class="card__tag" data-result-card-count>—</span>
-                </div>
-                <ul class="result-cards" data-result-flashcards></ul>
-              </article>
+            <div class="study-tabs" role="tablist" aria-label="Generated study material">
+              <button class="study-tab" id="result-tab-summary" type="button" role="tab" aria-selected="true" aria-controls="result-panel-summary" tabindex="0" data-result-tab="summary">
+                <svg class="icon" aria-hidden="true"><use href="#icon-book"></use></svg>
+                <span>Summary</span>
+                <span class="study-tab__count" data-tab-count="summary">—</span>
+              </button>
+              <button class="study-tab" id="result-tab-quiz" type="button" role="tab" aria-selected="false" aria-controls="result-panel-quiz" tabindex="-1" data-result-tab="quiz">
+                <svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg>
+                <span>Quiz</span>
+                <span class="study-tab__count" data-tab-count="quiz">—</span>
+              </button>
+              <button class="study-tab" id="result-tab-flashcards" type="button" role="tab" aria-selected="false" aria-controls="result-panel-flashcards" tabindex="-1" data-result-tab="flashcards">
+                <svg class="icon" aria-hidden="true"><use href="#icon-cards"></use></svg>
+                <span>Flashcards</span>
+                <span class="study-tab__count" data-tab-count="flashcards">—</span>
+              </button>
             </div>
 
-            <p class="study-result__note">Preview only for now — interactive quiz answering and card review arrive in Part 3.</p>
+            <section class="study-result-panel" id="result-panel-summary" role="tabpanel" aria-labelledby="result-tab-summary" data-result-panel="summary" tabindex="0">
+              <div class="study-result-panel__head">
+                <div>
+                  <p class="card__eyebrow">Overview</p>
+                  <h3>Summary</h3>
+                </div>
+                <div class="study-result-panel__tools">
+                  <span class="card__tag" data-result-time>—</span>
+                  <button class="btn btn--secondary btn--sm" type="button" data-summary-copy>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-copy"></use></svg>
+                    <span data-copy-label>Copy</span>
+                  </button>
+                  <button class="btn btn--quiet btn--sm" type="button" data-summary-download>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-download"></use></svg>
+                    <span>Download .txt</span>
+                  </button>
+                </div>
+              </div>
+              <p class="result-panel__lead" data-result-overview>—</p>
+              <h4 class="result-section-label">Key concepts</h4>
+              <ul class="result-points" data-result-keypoints aria-label="Key concepts"></ul>
+              <p class="summary-status" data-summary-status role="status" aria-live="polite" hidden></p>
+            </section>
+
+            <section class="study-result-panel" id="result-panel-quiz" role="tabpanel" aria-labelledby="result-tab-quiz" data-result-panel="quiz" tabindex="0" hidden>
+              <div class="study-result-panel__head study-result-panel__head--quiz">
+                <div>
+                  <p class="card__eyebrow">Five questions</p>
+                  <h3>Retrieval check</h3>
+                </div>
+                <div class="quiz-toolbar">
+                  <span class="card__tag" data-result-difficulty>—</span>
+                  <span class="quiz-toolbar__score"><span data-quiz-progress>0 of 5 answered</span><strong data-quiz-score>0 / 5</strong></span>
+                  <button class="btn btn--quiet btn--sm" type="button" data-quiz-restart>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-rotate"></use></svg>
+                    <span>Restart</span>
+                  </button>
+                </div>
+              </div>
+              <ol class="quiz-list" data-result-quiz></ol>
+              <div class="quiz-complete" data-quiz-complete hidden>
+                <span class="quiz-complete__eyebrow">Final score</span>
+                <strong data-quiz-complete-score>—</strong>
+                <span class="quiz-complete__percent" data-quiz-complete-percent>—</span>
+                <p>Every question is scored once. Restart the quiz to try again from a clean slate.</p>
+              </div>
+              <p class="sr-only" data-quiz-live role="status" aria-live="polite"></p>
+            </section>
+
+            <section class="study-result-panel" id="result-panel-flashcards" role="tabpanel" aria-labelledby="result-tab-flashcards" data-result-panel="flashcards" tabindex="0" hidden>
+              <div class="study-result-panel__head">
+                <div>
+                  <p class="card__eyebrow">Review deck</p>
+                  <h3>Flashcards</h3>
+                </div>
+                <div class="flashcard-toolbar">
+                  <span class="card__tag" data-result-card-count>—</span>
+                  <span class="flashcard-mastered" data-flashcard-mastered>0 of 0 known</span>
+                </div>
+              </div>
+              <ul class="flashcard-deck" data-result-flashcards aria-label="Flashcards"></ul>
+              <p class="sr-only" data-flashcard-live role="status" aria-live="polite"></p>
+            </section>
+
+            <p class="study-result__note">
+              <svg class="icon" aria-hidden="true"><use href="#icon-lock"></use></svg>
+              Saved on this device. Open History to revisit this session, your answers and your card mastery.
+            </p>
           </section>
         </section>
 
@@ -668,7 +750,7 @@
             <div class="page-header__copy">
               <p class="eyebrow">Your archive</p>
               <h1 class="page-title" id="history-title">History</h1>
-              <p class="page-subtitle">A record of the hours you have given to learning.</p>
+              <p class="page-subtitle">Saved generations and the hours you have given to learning.</p>
             </div>
             <button class="btn btn--primary" type="button" data-action="create-session">
               <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
@@ -694,15 +776,39 @@
             </article>
           </div>
 
+          <section class="card sessions-card saved-card" aria-labelledby="saved-title">
+            <header class="card__header sessions-card__header">
+              <div>
+                <p class="card__eyebrow">Saved for later</p>
+                <h2 class="card__title" id="saved-title">Generated sessions</h2>
+              </div>
+              <span class="count-badge" data-saved-count>0 saved</span>
+            </header>
+            <ul class="saved-list" data-saved-generations aria-label="Saved generated study sessions"></ul>
+            <div class="saved-empty" data-saved-empty>
+              <span class="saved-empty__icon" aria-hidden="true">
+                <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
+              </span>
+              <div class="saved-empty__copy">
+                <strong>No saved generations yet</strong>
+                <p>Generate a session in the Study Workspace and it will appear here automatically.</p>
+              </div>
+              <button class="btn btn--secondary btn--sm" type="button" data-action="create-session">
+                <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+                Create a session
+              </button>
+            </div>
+          </section>
+
           <section class="card sessions-card" aria-labelledby="history-list-title">
             <header class="card__header sessions-card__header">
               <div>
                 <p class="card__eyebrow">Timeline</p>
-                <h2 class="card__title" id="history-list-title">All study sessions</h2>
+                <h2 class="card__title" id="history-list-title">Study session archive</h2>
               </div>
               <span class="count-badge" data-history-entries>—</span>
             </header>
-            <ul class="session-list session-list--history" data-history-sessions aria-label="All study sessions"></ul>
+            <ul class="session-list session-list--history" data-history-sessions aria-label="Study session archive"></ul>
           </section>
         </section>
 
@@ -716,28 +822,28 @@
           <div class="progress-layout">
             <section class="card progress-preview" aria-labelledby="progress-preview-title">
               <div class="progress-preview__visual" aria-hidden="true">
-                <div class="ghost-chart">
+                <div class="ghost-chart" data-progress-chart>
+                  <span style="--h: 18%"></span>
                   <span style="--h: 28%"></span>
-                  <span style="--h: 46%"></span>
+                  <span style="--h: 24%"></span>
                   <span style="--h: 38%"></span>
+                  <span style="--h: 34%"></span>
+                  <span style="--h: 52%"></span>
+                  <span style="--h: 46%"></span>
                   <span style="--h: 62%"></span>
-                  <span style="--h: 54%"></span>
-                  <span style="--h: 78%"></span>
-                  <span style="--h: 70%"></span>
-                  <span style="--h: 92%"></span>
                 </div>
               </div>
               <div class="progress-preview__copy">
-                <span class="status-chip"><span class="status-chip__dot" aria-hidden="true"></span>Part 3 · Taking shape</span>
+                <span class="status-chip"><span class="status-chip__dot" aria-hidden="true"></span><span data-progress-status>Local record</span></span>
                 <h2 id="progress-preview-title">Mastery, made visible.</h2>
-                <p>Once study sessions are live, this space will trace the shape of your understanding over time — not just what you studied, but what endured.</p>
-                <ul class="check-list">
-                  <li>Mastery curves by subject</li>
-                  <li>Retention and review timing</li>
-                  <li>Strengths, gaps and gentle nudges</li>
+                <p data-progress-summary>Answer a few quiz questions and mark flashcards as known. This space turns those saved decisions into a picture of what is sticking.</p>
+                <ul class="check-list progress-facts">
+                  <li><span>Saved generations</span><strong data-progress-line="generations">0</strong></li>
+                  <li><span>Questions answered</span><strong data-progress-line="answered">0</strong></li>
+                  <li><span>Cards known</span><strong data-progress-line="cards">0 / 0</strong></li>
                 </ul>
                 <a class="link-arrow" href="#history" data-nav="history">
-                  See your session history
+                  See your saved sessions
                   <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg>
                 </a>
               </div>
@@ -748,27 +854,42 @@
                 <span class="preview-card__icon" aria-hidden="true">
                   <svg class="icon" aria-hidden="true"><use href="#icon-target"></use></svg>
                 </span>
-                <h3>Retention</h3>
-                <p>See what you remember a week later, not just what felt familiar in the moment.</p>
-                <span class="preview-card__tag">Part 3</span>
+                <h3>Quiz average</h3>
+                <p class="preview-card__value" data-progress="quiz-average">—</p>
+                <p data-progress-note="quiz">Take a quiz to start a saved average.</p>
+                <span class="preview-card__tag">From saved answers</span>
+              </article>
+              <article class="card preview-card">
+                <span class="preview-card__icon" aria-hidden="true">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-cards"></use></svg>
+                </span>
+                <h3>Flashcards known</h3>
+                <p class="preview-card__value" data-progress="cards">0</p>
+                <p data-progress-note="cards">No saved cards yet.</p>
+                <span class="preview-card__tag">Across saved decks</span>
               </article>
               <article class="card preview-card">
                 <span class="preview-card__icon" aria-hidden="true">
                   <svg class="icon" aria-hidden="true"><use href="#icon-book"></use></svg>
                 </span>
-                <h3>Subject depth</h3>
-                <p>Follow each subject from first principles to confident recall.</p>
-                <span class="preview-card__tag">Part 3</span>
-              </article>
-              <article class="card preview-card">
-                <span class="preview-card__icon" aria-hidden="true">
-                  <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
-                </span>
-                <h3>Weekly rhythm</h3>
-                <p>Understand the days and habits where your focus comes most easily.</p>
-                <span class="preview-card__tag">Part 3</span>
+                <h3>Topics explored</h3>
+                <p class="preview-card__value" data-progress="topics">0</p>
+                <p data-progress-note="topics">Your saved topics will collect here.</p>
+                <span class="preview-card__tag">Unique saved sessions</span>
               </article>
             </div>
+
+            <section class="card saved-card progress-saved" aria-labelledby="progress-saved-title">
+              <header class="card__header sessions-card__header">
+                <div>
+                  <p class="card__eyebrow">Your data</p>
+                  <h2 class="card__title" id="progress-saved-title">Saved learning</h2>
+                </div>
+                <span class="count-badge" data-progress-count>0 saved</span>
+              </header>
+              <ul class="progress-saved-list" data-progress-sessions aria-label="Saved learning progress"></ul>
+              <p class="progress-empty" data-progress-empty>Nothing saved yet. Completed generations will show their quiz score and card mastery here.</p>
+            </section>
           </div>
         </section>
 
@@ -854,7 +975,7 @@
                 </li>
                 <li>
                   <div><strong>Review reminders</strong><span>Quiet by default</span></div>
-                  <span class="soon-tag">Part 3</span>
+                  <span class="soon-tag soon-tag--on">Manual</span>
                 </li>
                 <li>
                   <div><strong>Motion</strong><span>Follows your system setting</span></div>
@@ -868,10 +989,10 @@
                 <div class="about-card__copy">
                   <p class="card__eyebrow">The build</p>
                   <h2 id="about-title">About MindForge</h2>
-                  <p>Phase 0, Part 2 — the local study workspace. Shape a topic and your notes into a summary, retrieval quiz and flashcard deck entirely in the browser. The generator uses local mock content; there is no account, backend or AI call. Interactive answering and card review arrive in Part 3.</p>
+                  <p>Phase 0, Part 3 — the interactive local study workspace. Shape a topic and your notes into a summary, scored retrieval quiz and flip-card deck entirely in the browser. Completed generations, answers and mastery are saved locally; there is no account, backend or AI call.</p>
                 </div>
                 <dl class="about-list">
-                  <div><dt>Version</dt><dd>0.2.0 · Workspace</dd></div>
+                  <div><dt>Version</dt><dd>0.3.0 · Interactive results</dd></div>
                   <div><dt>Storage</dt><dd>Local browser only</dd></div>
                   <div><dt>Navigation</dt><dd>Single page, no reload</dd></div>
                 </dl>
@@ -897,10 +1018,12 @@
   </div>
 
   <script src="js/storage.js"></script>
+  <script src="js/history.js"></script>
   <script src="js/mock-data.js"></script>
   <script src="js/mock-generator.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/navigation.js"></script>
+  <script src="js/learning.js"></script>
   <script src="js/workspace.js"></script>
   <script src="js/app.js"></script>
 </body>
