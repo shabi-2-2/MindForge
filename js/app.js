@@ -652,7 +652,11 @@
         global.MindForgeNavigation.goTo('workspace');
       }
 
-      showToast('The study builder is being forged — arriving in Part 2.');
+      if (global.MindForgeWorkspace) {
+        global.MindForgeWorkspace.focusTopic();
+      }
+
+      showToast('The forge is ready — start with a topic and a few notes.');
     });
 
     var year = $('[data-year]');

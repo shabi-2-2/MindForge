@@ -130,6 +130,11 @@
       <rect x="4" y="10" width="16" height="11" rx="2.5"></rect>
       <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
     </symbol>
+    <symbol id="icon-alert" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 7.5v5.5"></path>
+      <path d="M12 16.5h.01"></path>
+    </symbol>
   </svg>
 
   <div class="app-shell">
@@ -424,44 +429,170 @@
           </header>
 
           <div class="workspace-grid">
-            <article class="card workspace-panel">
+            <article class="card workspace-panel study-panel">
               <div class="workspace-panel__top">
-                <span class="status-chip"><span class="status-chip__dot" aria-hidden="true"></span>Part 2 · In the forge</span>
+                <div class="workspace-panel__heading">
+                  <p class="card__eyebrow">New session</p>
+                  <h2 class="workspace-panel__title">What are you studying?</h2>
+                </div>
                 <span class="workspace-panel__mark" aria-hidden="true">
                   <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
                 </span>
               </div>
-              <h2 class="workspace-panel__title">Your next session starts here.</h2>
-              <p class="workspace-panel__copy">Soon you will be able to bring any topic, chapter or set of notes and shape it into a focused study session. The foundation is set; the builder is next.</p>
 
-              <ol class="blueprint">
-                <li>
-                  <span class="blueprint__num">01</span>
-                  <div><strong>Choose your material</strong><span>Bring a topic, a chapter, or notes of your own.</span></div>
-                </li>
-                <li>
-                  <span class="blueprint__num">02</span>
-                  <div><strong>Shape the session</strong><span>Choose guided reading, a quiz, or a flashcard deck.</span></div>
-                </li>
-                <li>
-                  <span class="blueprint__num">03</span>
-                  <div><strong>Practice with intent</strong><span>Work through it, then return to see what stuck.</span></div>
-                </li>
-              </ol>
+              <form class="study-form" id="study-form" novalidate>
+                <div class="field" data-field="topic">
+                  <div class="field__head">
+                    <label class="field__label" for="study-topic">Topic</label>
+                    <span class="field__count" data-topic-counter>0 / 120</span>
+                  </div>
+                  <input class="field__input" id="study-topic" name="topic" type="text" maxlength="120" autocomplete="off" placeholder="e.g. The adaptive immune system" aria-describedby="study-topic-hint study-topic-error" required>
+                  <p class="field__hint" id="study-topic-hint">A chapter, concept or question you want to work through.</p>
+                  <p class="field__error" id="study-topic-error" data-field-error="topic" hidden>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-alert"></use></svg>
+                    <span data-field-error-text></span>
+                  </p>
+                </div>
 
-              <p class="text-note">Preview only — nothing is generated in this build.</p>
+                <div class="field" data-field="notes">
+                  <div class="field__head">
+                    <label class="field__label" for="study-notes">Your notes</label>
+                    <span class="field__count" data-notes-counter>0 / 5,000</span>
+                  </div>
+                  <textarea class="field__input field__input--textarea" id="study-notes" name="notes" rows="8" maxlength="5000" placeholder="Paste a few paragraphs from your lecture notes, or explain the topic in your own words…" aria-describedby="study-notes-hint study-notes-error" required></textarea>
+                  <p class="field__hint" id="study-notes-hint">The local mock generator draws its summary and cards from these words.</p>
+                  <p class="field__error" id="study-notes-error" data-field-error="notes" hidden>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-alert"></use></svg>
+                    <span data-field-error-text></span>
+                  </p>
+                </div>
+
+                <fieldset class="choice-group">
+                  <legend class="choice-group__legend">Answer style</legend>
+                  <p class="choice-group__hint">Sets the tone of the summary and flashcards.</p>
+                  <div class="choice-grid">
+                    <label class="choice-card">
+                      <input class="sr-only" type="radio" name="answer-style" value="kid">
+                      <span class="choice-card__body">
+                        <span class="choice-card__copy">
+                          <strong>Explain Like I'm 10</strong>
+                          <span>Plain language, concrete ideas.</span>
+                        </span>
+                        <span class="choice-card__check" aria-hidden="true">
+                          <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
+                        </span>
+                      </span>
+                    </label>
+
+                    <label class="choice-card">
+                      <input class="sr-only" type="radio" name="answer-style" value="exam" checked>
+                      <span class="choice-card__body">
+                        <span class="choice-card__copy">
+                          <strong>Exam-Focused</strong>
+                          <span>Structured for recall under pressure.</span>
+                        </span>
+                        <span class="choice-card__check" aria-hidden="true">
+                          <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
+                        </span>
+                      </span>
+                    </label>
+
+                    <label class="choice-card">
+                      <input class="sr-only" type="radio" name="answer-style" value="detailed">
+                      <span class="choice-card__body">
+                        <span class="choice-card__copy">
+                          <strong>Detailed</strong>
+                          <span>Layered explanation with nuance.</span>
+                        </span>
+                        <span class="choice-card__check" aria-hidden="true">
+                          <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="choice-group">
+                  <legend class="choice-group__legend">Quiz difficulty</legend>
+                  <p class="choice-group__hint">Sets how many prompts and cards you receive.</p>
+                  <div class="choice-grid choice-grid--compact">
+                    <label class="choice-card choice-card--compact">
+                      <input class="sr-only" type="radio" name="quiz-difficulty" value="easy">
+                      <span class="choice-card__body">
+                        <span class="choice-card__copy">
+                          <strong>Easy</strong>
+                          <span>3 questions · 4 cards</span>
+                        </span>
+                        <span class="choice-card__check" aria-hidden="true">
+                          <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
+                        </span>
+                      </span>
+                    </label>
+
+                    <label class="choice-card choice-card--compact">
+                      <input class="sr-only" type="radio" name="quiz-difficulty" value="medium" checked>
+                      <span class="choice-card__body">
+                        <span class="choice-card__copy">
+                          <strong>Medium</strong>
+                          <span>4 questions · 5 cards</span>
+                        </span>
+                        <span class="choice-card__check" aria-hidden="true">
+                          <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
+                        </span>
+                      </span>
+                    </label>
+
+                    <label class="choice-card choice-card--compact">
+                      <input class="sr-only" type="radio" name="quiz-difficulty" value="hard">
+                      <span class="choice-card__body">
+                        <span class="choice-card__copy">
+                          <strong>Hard</strong>
+                          <span>5 questions · 6 cards</span>
+                        </span>
+                        <span class="choice-card__check" aria-hidden="true">
+                          <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <div class="study-form__actions">
+                  <button class="btn btn--primary study-form__submit" type="submit" data-generate>
+                    <span class="spinner study-form__spinner" data-generate-spinner aria-hidden="true"></span>
+                    <svg class="icon study-form__spark" aria-hidden="true"><use href="#icon-spark"></use></svg>
+                    <span data-generate-label>Generate study material</span>
+                  </button>
+                  <p class="study-form__footnote">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-lock"></use></svg>
+                    Runs locally in this browser. No backend, account or AI call.
+                  </p>
+                </div>
+
+                <div class="study-status" data-study-status role="status" aria-live="polite" hidden></div>
+
+                <div class="study-alert" data-study-error role="alert" tabindex="-1" hidden>
+                  <span class="study-alert__icon" aria-hidden="true">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-alert"></use></svg>
+                  </span>
+                  <div>
+                    <strong>The forge cooled down.</strong>
+                    <p data-study-error-message>Something interrupted generation. Please try again.</p>
+                  </div>
+                </div>
+              </form>
             </article>
 
-            <div class="method-grid">
+            <div class="method-grid" aria-label="What this session includes">
               <article class="card method-card">
                 <div class="method-card__top">
                   <span class="method-card__icon method-card__icon--sage" aria-hidden="true">
                     <svg class="icon" aria-hidden="true"><use href="#icon-book"></use></svg>
                   </span>
-                  <span class="method-card__tag">Part 2</span>
+                  <span class="method-card__tag">Included</span>
                 </div>
-                <h3>Guided reading</h3>
-                <p>Close reading with structure — long material distilled into notes you can hold onto.</p>
+                <h3>Structured summary</h3>
+                <p>Your notes distilled into a clear overview and a small set of points worth holding onto.</p>
               </article>
 
               <article class="card method-card">
@@ -469,10 +600,10 @@
                   <span class="method-card__icon method-card__icon--ember" aria-hidden="true">
                     <svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg>
                   </span>
-                  <span class="method-card__tag">Part 2</span>
+                  <span class="method-card__tag">Included</span>
                 </div>
-                <h3>Adaptive quizzes</h3>
-                <p>Retrieval practice that meets you where you are and follows what you almost know.</p>
+                <h3>Retrieval quizzes</h3>
+                <p>Short checks shaped by your difficulty choice, with answers and reasoning you can review.</p>
               </article>
 
               <article class="card method-card">
@@ -480,13 +611,56 @@
                   <span class="method-card__icon method-card__icon--blue" aria-hidden="true">
                     <svg class="icon" aria-hidden="true"><use href="#icon-cards"></use></svg>
                   </span>
-                  <span class="method-card__tag">Part 2</span>
+                  <span class="method-card__tag">Included</span>
                 </div>
-                <h3>Smart flashcards</h3>
-                <p>Spaced repetition built around your memory, not a generic schedule.</p>
+                <h3>Study flashcards</h3>
+                <p>Cards built from your notes, ready for interactive review when Part 3 arrives.</p>
               </article>
             </div>
           </div>
+
+          <section class="card study-result" id="study-result" aria-labelledby="study-result-title" hidden>
+            <header class="study-result__head">
+              <div class="study-result__head-copy">
+                <p class="card__eyebrow">Session preview</p>
+                <h2 class="study-result__title" id="study-result-title" tabindex="-1" data-result-title>—</h2>
+                <p class="study-result__meta" data-result-meta>—</p>
+              </div>
+              <span class="study-result__badge">
+                <svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg>
+                Generated locally
+              </span>
+            </header>
+
+            <div class="study-result__grid">
+              <article class="result-panel" aria-labelledby="result-summary-title">
+                <div class="result-panel__head">
+                  <h3 id="result-summary-title">Summary</h3>
+                  <span class="card__tag" data-result-time>—</span>
+                </div>
+                <p class="result-panel__lead" data-result-overview>—</p>
+                <ul class="result-points" data-result-keypoints aria-label="Key points"></ul>
+              </article>
+
+              <article class="result-panel" aria-labelledby="result-quiz-title">
+                <div class="result-panel__head">
+                  <h3 id="result-quiz-title">Retrieval check</h3>
+                  <span class="card__tag" data-result-difficulty>—</span>
+                </div>
+                <ol class="result-quiz" data-result-quiz></ol>
+              </article>
+
+              <article class="result-panel result-panel--wide" aria-labelledby="result-cards-title">
+                <div class="result-panel__head">
+                  <h3 id="result-cards-title">Flashcards</h3>
+                  <span class="card__tag" data-result-card-count>—</span>
+                </div>
+                <ul class="result-cards" data-result-flashcards></ul>
+              </article>
+            </div>
+
+            <p class="study-result__note">Preview only for now — interactive quiz answering and card review arrive in Part 3.</p>
+          </section>
         </section>
 
         <section class="view" id="history" data-view="history" data-title="History" aria-labelledby="history-title" hidden>
@@ -672,11 +846,11 @@
               <ul class="settings-list">
                 <li>
                   <div><strong>Daily focus goal</strong><span>90 minutes</span></div>
-                  <span class="soon-tag">Part 2</span>
+                  <span class="soon-tag">Preview</span>
                 </li>
                 <li>
                   <div><strong>Default session style</strong><span>Adaptive</span></div>
-                  <span class="soon-tag">Part 2</span>
+                  <span class="soon-tag">Preview</span>
                 </li>
                 <li>
                   <div><strong>Review reminders</strong><span>Quiet by default</span></div>
@@ -694,10 +868,10 @@
                 <div class="about-card__copy">
                   <p class="card__eyebrow">The build</p>
                   <h2 id="about-title">About MindForge</h2>
-                  <p>Phase 0, Part 1 — dashboard foundation. A local-first front-end with no account, no backend and no AI calls yet. Session generation, quiz results and progress analytics arrive in later parts.</p>
+                  <p>Phase 0, Part 2 — the local study workspace. Shape a topic and your notes into a summary, retrieval quiz and flashcard deck entirely in the browser. The generator uses local mock content; there is no account, backend or AI call. Interactive answering and card review arrive in Part 3.</p>
                 </div>
                 <dl class="about-list">
-                  <div><dt>Version</dt><dd>0.1.0 · Foundation</dd></div>
+                  <div><dt>Version</dt><dd>0.2.0 · Workspace</dd></div>
                   <div><dt>Storage</dt><dd>Local browser only</dd></div>
                   <div><dt>Navigation</dt><dd>Single page, no reload</dd></div>
                 </dl>
@@ -724,8 +898,10 @@
 
   <script src="js/storage.js"></script>
   <script src="js/mock-data.js"></script>
+  <script src="js/mock-generator.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/navigation.js"></script>
+  <script src="js/workspace.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

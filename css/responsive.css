@@ -232,6 +232,14 @@
   .settings-card {
     padding: var(--space-6);
   }
+
+  .study-result__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .result-panel--wide {
+    grid-column: auto;
+  }
 }
 
 /* Phones. */
@@ -609,6 +617,48 @@
     padding-inline: var(--space-4);
     font-size: 9px;
   }
+
+  .workspace-panel {
+    padding: var(--space-5);
+  }
+
+  .workspace-panel__title {
+    font-size: clamp(1.7rem, 6.5vw, 2.1rem);
+  }
+
+  .choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .choice-grid--compact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .study-form__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .study-form__submit {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .study-result {
+    padding: var(--space-5);
+  }
+
+  .study-result__head {
+    flex-direction: column;
+  }
+
+  .study-result__badge {
+    align-self: flex-start;
+  }
+
+  .result-panel {
+    padding: var(--space-4);
+  }
 }
 
 /* Very narrow phones. */
@@ -631,6 +681,10 @@
 
   .summary-card strong {
     font-size: 1.8rem;
+  }
+
+  .choice-grid--compact {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .toast {
