@@ -117,8 +117,53 @@
     return history ? history.all() : [];
   }
 
+  function recordTitle(record) {
+    if (
+      record.summary &&
+      typeof record.summary.title === 'string' &&
+      record.summary.title
+    ) {
+      return record.summary.title;
+    }
+
+    if (typeof record.topic === 'string' && record.topic) {
+      return record.topic;
+    }
+
+    var text = record.summary ? record.summary.text : '';
+
+    if (typeof text === 'string' && text) {
+      return text.slice(0, 60) + (text.length > 60 ? '…' : '');
+    }
+
+    return 'Study session';
+  }
+
+  function recordConfig(record) {
+    var config = record.config || {};
+
+    return {
+      answerStyleLabel:
+        typeof config.answerStyleLabel === 'string' && config.answerStyleLabel
+          ? config.answerStyleLabel
+          : 'Study material',
+      difficultyLabel:
+        typeof config.difficultyLabel === 'string' && config.difficultyLabel
+          ? config.difficultyLabel
+          : 'Medium'
+    };
+  }
+
+  function recordMinutes(record) {
+    return record.summary &&
+      typeof record.summary.estimatedMinutes === 'number' &&
+      record.summary.estimatedMinutes > 0
+      ? Math.round(record.summary.estimatedMinutes)
+      : 0;
+  }
+
   function scoreForRecord(record) {
-    var questions = record.quiz.questions;
+    var questions = record.quiz;
     var answers =
       record.progress && record.progress.quiz && record.progress.quiz.answers
         ? record.progress.quiz.answers
@@ -133,7 +178,7 @@
 
       answered += 1;
 
-      if (answers[question.id] === question.answerIndex) {
+      if (answers[question.id] === question.correctAnswer) {
         correct += 1;
       }
     });
@@ -186,12 +231,12 @@
 
     return {
       id: record.id,
-      title: record.summary.title || record.topic,
+      title: recordTitle(record),
       subject: 'Local session',
       type: 'Quiz',
       daysAgo: daysAgoFromDate(record.createdAt),
       date: record.createdAt,
-      duration: record.summary.estimatedMinutes || 0,
+      duration: recordMinutes(record),
       cardsGained: mastery.known,
       score: score.answered ? score.percent : null,
       savedRecord: record
@@ -216,7 +261,7 @@
         return;
       }
 
-      byDay[day] = (byDay[day] || 0) + (record.summary.estimatedMinutes || 0);
+      byDay[day] = (byDay[day] || 0) + recordMinutes(record);
     });
 
     return Object.keys(byDay).map(function (day) {
@@ -715,7 +760,7 @@
 
     var title = document.createElement('p');
     title.className = 'saved-row__title';
-    title.textContent = record.summary.title || record.topic;
+    title.textContent = recordTitle(record);
 
     var meta = document.createElement('p');
     meta.className = 'saved-row__meta';
@@ -731,8 +776,9 @@
     separator.textContent = '·';
 
     var config = document.createElement('span');
+    var labels = recordConfig(record);
     config.textContent =
-      record.config.answerStyleLabel + ' · ' + record.config.difficultyLabel;
+      labels.answerStyleLabel + ' · ' + labels.difficultyLabel;
 
     var separatorTwo = separator.cloneNode(true);
 
@@ -780,7 +826,7 @@
     openButton.className = 'btn btn--secondary btn--sm';
     openButton.type = 'button';
     openButton.setAttribute('data-saved-open', record.id);
-    openButton.setAttribute('aria-label', 'Open ' + record.summary.title);
+    openButton.setAttribute('aria-label', 'Open ' + recordTitle(record));
     openButton.textContent = 'Open';
 
     var deleteButton = document.createElement('button');
@@ -789,7 +835,7 @@
     deleteButton.setAttribute('data-saved-delete', record.id);
     deleteButton.setAttribute(
       'aria-label',
-      'Delete ' + record.summary.title + ' from History'
+      'Delete ' + recordTitle(record) + ' from History'
     );
     deleteButton.appendChild(createIcon('trash', 'icon--small'));
     var deleteLabel = document.createElement('span');
@@ -869,7 +915,7 @@
     main.className = 'progress-saved-row__main';
 
     var title = document.createElement('strong');
-    title.textContent = record.summary.title || record.topic;
+    title.textContent = recordTitle(record);
 
     var meta = document.createElement('span');
     meta.textContent =
@@ -907,7 +953,7 @@
       answeredQuestions += score.answered;
       knownCards += mastery.known;
       totalCards += mastery.total;
-      topics[record.topic] = true;
+      topics[recordTitle(record)] = true;
 
       if (score.answered) {
         answeredQuizzes += 1;
@@ -1073,7 +1119,7 @@
 
     if (global.MindForgeWorkspace && global.MindForgeWorkspace.openSaved) {
       if (global.MindForgeWorkspace.openSaved(record)) {
-        showToast('Reopened “' + record.summary.title + '” from History.');
+        showToast('Reopened “' + recordTitle(record) + '” from History.');
       }
     } else {
       showToast('The Study Workspace is not available right now.');
@@ -1096,7 +1142,7 @@
 
     showToast(
       'Removed “' +
-        (record ? record.summary.title : 'saved session') +
+        (record ? recordTitle(record) : 'saved session') +
         '” from History.'
     );
   }

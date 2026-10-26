@@ -10,6 +10,7 @@
   'use strict';
 
   var storage = global.MindForgeStorage;
+  var contract = global.MindForgeContract;
 
   if (!storage) {
     return;
@@ -22,28 +23,21 @@
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   }
 
+  function normaliseStoredValue(value) {
+    if (!contract || typeof contract.normaliseStoredResult !== 'function') {
+      return null;
+    }
+
+    return contract.normaliseStoredResult(value);
+  }
+
   function isResult(value) {
     return Boolean(
       isObject(value) &&
         typeof value.id === 'string' &&
         value.id &&
-        value.summary &&
-        typeof value.summary.title === 'string' &&
-        typeof value.summary.overview === 'string' &&
-        Array.isArray(value.summary.keyPoints) &&
-        value.quiz &&
-        Array.isArray(value.quiz.questions) &&
-        Array.isArray(value.flashcards) &&
-        value.config
+        normaliseStoredValue(value)
     );
-  }
-
-  function copy(value) {
-    try {
-      return JSON.parse(JSON.stringify(value));
-    } catch (error) {
-      return null;
-    }
   }
 
   function emptyProgress() {
@@ -62,7 +56,7 @@
     var validCards = Object.create(null);
     var normalised = emptyProgress();
 
-    record.quiz.questions.forEach(function (question) {
+    record.quiz.forEach(function (question) {
       if (question && typeof question.id === 'string') {
         validQuestions[question.id] = question;
       }
@@ -82,6 +76,7 @@
         question &&
         typeof selected === 'number' &&
         isFinite(selected) &&
+        Math.floor(selected) === selected &&
         selected >= 0 &&
         selected < question.options.length
       ) {
@@ -104,23 +99,32 @@
   }
 
   function normaliseRecord(value) {
-    if (!isResult(value)) {
+    if (
+      !isObject(value) ||
+      typeof value.id !== 'string' ||
+      !value.id
+    ) {
       return null;
     }
 
-    var record = copy(value);
+    var record = normaliseStoredValue(value);
 
     if (!record) {
       return null;
     }
 
+    record.id = value.id;
     record.progress = normaliseProgress(value.progress, record);
+    record.createdAt =
+      typeof value.createdAt === 'string' && value.createdAt
+        ? value.createdAt
+        : typeof value.savedAt === 'string' && value.savedAt
+          ? value.savedAt
+          : new Date().toISOString();
     record.savedAt =
       typeof value.savedAt === 'string' && value.savedAt
         ? value.savedAt
-        : typeof value.createdAt === 'string'
-          ? value.createdAt
-          : new Date().toISOString();
+        : record.createdAt;
     record.updatedAt =
       typeof value.updatedAt === 'string' && value.updatedAt
         ? value.updatedAt
@@ -207,7 +211,7 @@
       }
     });
 
-    var record = copy(result);
+    var record = normaliseRecord(result);
 
     if (!record) {
       return { ok: false, record: null, reason: 'invalid' };

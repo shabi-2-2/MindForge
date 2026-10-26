@@ -55,6 +55,46 @@
   var activeTab = 'summary';
   var copyTimer = null;
 
+  function configFor(result) {
+    var config = result && result.config ? result.config : {};
+
+    return {
+      answerStyleLabel:
+        typeof config.answerStyleLabel === 'string' && config.answerStyleLabel
+          ? config.answerStyleLabel
+          : 'Study material',
+      difficultyLabel:
+        typeof config.difficultyLabel === 'string' && config.difficultyLabel
+          ? config.difficultyLabel
+          : 'Medium'
+    };
+  }
+
+  function titleFor(result) {
+    if (
+      result.summary &&
+      typeof result.summary.title === 'string' &&
+      result.summary.title
+    ) {
+      return result.summary.title;
+    }
+
+    if (typeof result.topic === 'string' && result.topic) {
+      return result.topic;
+    }
+
+    var text = result.summary ? result.summary.text : '';
+    return text ? text.slice(0, 60) + (text.length > 60 ? '…' : '') : 'Study session';
+  }
+
+  function minutesFor(result) {
+    return result.summary &&
+      typeof result.summary.estimatedMinutes === 'number' &&
+      result.summary.estimatedMinutes > 0
+      ? Math.round(result.summary.estimatedMinutes)
+      : null;
+  }
+
   function createIcon(name, className) {
     var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     var use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
@@ -92,24 +132,25 @@
   }
 
   function summaryText(result) {
+    var config = configFor(result);
     var lines = [
-      result.summary.title,
+      titleFor(result),
       '',
-      result.summary.overview,
+      result.summary.text,
       '',
       'Key concepts'
     ];
 
-    result.summary.keyPoints.forEach(function (point, index) {
+    result.summary.keyConcepts.forEach(function (point, index) {
       lines.push(index + 1 + '. ' + point);
     });
 
     lines.push('');
     lines.push(
       'MindForge · ' +
-        result.config.answerStyleLabel +
+        config.answerStyleLabel +
         ' · ' +
-        result.config.difficultyLabel +
+        config.difficultyLabel +
         ' difficulty'
     );
     lines.push('Generated locally in the browser. No AI service was used.');
@@ -222,7 +263,7 @@
     }
 
     var text = summaryText(current.result);
-    var filename = 'mindforge-' + slugify(current.result.summary.title) + '.txt';
+    var filename = 'mindforge-' + slugify(titleFor(current.result)) + '.txt';
 
     try {
       if (typeof global.Blob !== 'function' || !global.URL || !global.URL.createObjectURL) {
@@ -254,28 +295,36 @@
   }
 
   function renderSummary(result) {
+    var config = configFor(result);
+    var minutes = minutesFor(result);
+
     if (titleElement) {
-      titleElement.textContent = result.summary.title;
+      titleElement.textContent = titleFor(result);
     }
 
     if (metaElement) {
-      metaElement.textContent = [
-        result.config.answerStyleLabel,
-        result.config.difficultyLabel + ' difficulty',
-        result.quiz.questions.length + ' questions',
-        result.flashcards.length + ' flashcards',
-        'about ' + result.summary.estimatedMinutes + ' min'
-      ].join(' · ');
+      var meta = [
+        config.answerStyleLabel,
+        config.difficultyLabel + ' difficulty',
+        result.quiz.length + ' questions',
+        result.flashcards.length + ' flashcards'
+      ];
+
+      if (minutes) {
+        meta.push('about ' + minutes + ' min');
+      }
+
+      metaElement.textContent = meta.join(' · ');
     }
 
     if (summaryOverview) {
-      summaryOverview.textContent = result.summary.overview;
+      summaryOverview.textContent = result.summary.text;
     }
 
     if (summaryPoints) {
       summaryPoints.textContent = '';
 
-      result.summary.keyPoints.forEach(function (point) {
+      result.summary.keyConcepts.forEach(function (point) {
         var item = document.createElement('li');
         var text = document.createElement('span');
 
@@ -287,7 +336,7 @@
     }
 
     if (summaryTime) {
-      summaryTime.textContent = '~' + result.summary.estimatedMinutes + ' min';
+      summaryTime.textContent = minutes ? '~' + minutes + ' min' : '—';
     }
 
     var copyLabel = copyLabelElement();
@@ -300,7 +349,7 @@
 
     var summaryCount = resultSection.querySelector('[data-tab-count="summary"]');
     if (summaryCount) {
-      summaryCount.textContent = result.summary.keyPoints.length + ' points';
+      summaryCount.textContent = result.summary.keyConcepts.length + ' points';
     }
   }
 
@@ -309,7 +358,7 @@
       return { answered: 0, correct: 0, total: 0, percent: 0, complete: false };
     }
 
-    var questions = current.result.quiz.questions;
+    var questions = current.result.quiz;
     var answered = 0;
     var correct = 0;
 
@@ -320,7 +369,7 @@
 
       answered += 1;
 
-      if (quizAnswers[question.id] === question.answerIndex) {
+      if (quizAnswers[question.id] === question.correctAnswer) {
         correct += 1;
       }
     });
@@ -363,7 +412,7 @@
   }
 
   function applyAnswerState(questionElement, question, selected) {
-    var isCorrect = selected === question.answerIndex;
+    var isCorrect = selected === question.correctAnswer;
     var inputs = Array.prototype.slice.call(
       questionElement.querySelectorAll('input[type="radio"]')
     );
@@ -389,7 +438,7 @@
 
       option.classList.toggle(
         'is-correct',
-        optionIndex === question.answerIndex
+        optionIndex === question.correctAnswer
       );
       option.classList.toggle(
         'is-selected',
@@ -411,7 +460,7 @@
 
     if (feedbackAnswer) {
       feedbackAnswer.textContent =
-        'Correct answer: ' + question.options[question.answerIndex];
+        'Correct answer: ' + question.options[question.correctAnswer];
     }
 
     if (feedbackExplain) {
@@ -446,13 +495,13 @@
     var state = updateQuizSummary();
     persistProgress();
 
-    var isCorrect = selected === question.answerIndex;
+    var isCorrect = selected === question.correctAnswer;
     setLive(
       quizLive,
       isCorrect
-        ? 'Correct. ' + question.options[question.answerIndex] + '.'
+        ? 'Correct. ' + question.options[question.correctAnswer] + '.'
         : 'Not quite. The correct answer is ' +
-            question.options[question.answerIndex] +
+            question.options[question.correctAnswer] +
             '. ' +
             question.explanation
     );
@@ -489,7 +538,7 @@
 
     var prompt = document.createElement('span');
     prompt.className = 'quiz-question__text';
-    prompt.textContent = question.prompt;
+    prompt.textContent = question.question;
 
     legend.appendChild(number);
     legend.appendChild(prompt);
@@ -576,13 +625,13 @@
 
   function renderQuiz(result) {
     if (quizDifficulty) {
-      quizDifficulty.textContent = result.config.difficultyLabel;
+      quizDifficulty.textContent = configFor(result).difficultyLabel;
     }
 
     if (quizList) {
       quizList.textContent = '';
 
-      result.quiz.questions.forEach(function (question, index) {
+      result.quiz.forEach(function (question, index) {
         quizList.appendChild(createQuestion(question, index));
       });
     }
@@ -591,7 +640,7 @@
 
     var quizCount = resultSection.querySelector('[data-tab-count="quiz"]');
     if (quizCount) {
-      quizCount.textContent = result.quiz.questions.length + ' questions';
+      quizCount.textContent = result.quiz.length + ' questions';
     }
   }
 

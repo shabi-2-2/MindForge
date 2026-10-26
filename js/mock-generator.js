@@ -8,9 +8,8 @@
 (function (global) {
   'use strict';
 
+  var contract = global.MindForgeContract;
   var DEFAULT_DELAY = 1400;
-  var MAX_TOPIC = 120;
-  var MAX_NOTES = 5000;
   var MAX_POINT_LENGTH = 190;
 
   var STYLE_LABELS = {
@@ -373,8 +372,8 @@
 
     return {
       title: topicTitle(topic),
-      overview: style.overview(topic),
-      keyPoints: insights.slice(0, style.keyPoints),
+      text: style.overview(topic),
+      keyConcepts: insights.slice(0, style.keyPoints),
       estimatedMinutes: Math.max(12, Math.min(60, estimatedMinutes))
     };
   }
@@ -402,9 +401,9 @@
 
       questions.push({
         id: 'q' + (index + 1),
-        prompt: content.prompt,
+        question: content.prompt,
         options: options,
-        answerIndex: correctIndex,
+        correctAnswer: correctIndex,
         explanation: content.explanation
       });
     }
@@ -489,15 +488,16 @@
         difficultyLabel: DIFFICULTIES[difficultyKey].label
       },
       summary: summary,
-      quiz: {
-        difficulty: difficultyKey,
-        difficultyLabel: DIFFICULTIES[difficultyKey].label,
-        questions: buildQuestions(topic, insights, difficultyKey)
-      },
-      flashcards: buildFlashcards(topic, summary.overview, insights, difficultyKey),
+      quiz: buildQuestions(topic, insights, difficultyKey),
+      flashcards: buildFlashcards(
+        topic,
+        summary.text,
+        insights,
+        difficultyKey
+      ),
       meta: {
         generator: 'local-mock',
-        version: 2,
+        version: 3,
         characters: {
           topic: topic.length,
           notes: notes.length
@@ -507,21 +507,31 @@
   }
 
   function generate(input, options) {
-    var payload = input || {};
-    var topic = normaliseSpace(payload.topic).slice(0, MAX_TOPIC);
-    var notes = String(payload.notes == null ? '' : payload.notes)
-      .replace(/\r\n?/g, '\n')
-      .trim()
-      .slice(0, MAX_NOTES);
-
-    if (!topic || !notes) {
+    if (!contract || typeof contract.validateRequest !== 'function') {
       return Promise.reject(
-        new Error('A topic and notes are required to generate study material.')
+        new Error('The study contract did not load. Refresh the page and try again.')
       );
     }
 
-    var styleKey = STYLE_PROFILES[payload.answerStyle] ? payload.answerStyle : 'exam';
-    var difficultyKey = DIFFICULTIES[payload.difficulty] ? payload.difficulty : 'medium';
+    var validation = contract.validateRequest(input);
+
+    if (!validation.ok) {
+      var error = new Error(
+        validation.errors.length
+          ? validation.errors[0].message
+          : 'A topic and notes are required to generate study material.'
+      );
+
+      error.name = 'InvalidGenerationRequest';
+      error.code = 'invalid-request';
+      error.details = validation.errors;
+      return Promise.reject(error);
+    }
+
+    var topic = normaliseSpace(validation.value.topic);
+    var notes = String(validation.value.notes).replace(/\r\n?/g, '\n');
+    var styleKey = validation.value.answerStyle;
+    var difficultyKey = validation.value.difficulty;
     var delay =
       options && typeof options.delay === 'number'
         ? Math.max(0, options.delay)
@@ -541,7 +551,11 @@
   global.MindForgeGenerator = Object.freeze({
     generate: generate,
     DEFAULT_DELAY: DEFAULT_DELAY,
-    MAX_TOPIC: MAX_TOPIC,
-    MAX_NOTES: MAX_NOTES
+    get MAX_TOPIC() {
+      return contract ? contract.getLimits().topic : 120;
+    },
+    get MAX_NOTES() {
+      return contract ? contract.getLimits().notes : 20000;
+    }
   });
 })(window);

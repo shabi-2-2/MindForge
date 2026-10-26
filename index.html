@@ -464,14 +464,15 @@
                 </span>
               </div>
 
-              <form class="study-form" id="study-form" novalidate>
+              <form class="study-form" id="study-form" novalidate data-generation-state="idle">
                 <div class="field" data-field="topic">
                   <div class="field__head">
                     <label class="field__label" for="study-topic">Topic</label>
                     <span class="field__count" data-topic-counter>0 / 120</span>
                   </div>
-                  <input class="field__input" id="study-topic" name="topic" type="text" maxlength="120" autocomplete="off" placeholder="e.g. The adaptive immune system" aria-describedby="study-topic-hint study-topic-error" required>
-                  <p class="field__hint" id="study-topic-hint">A chapter, concept or question you want to work through.</p>
+                  <input class="field__input" id="study-topic" name="topic" type="text" data-max-length="120" autocomplete="off" placeholder="e.g. The adaptive immune system" aria-describedby="study-topic-hint study-topic-warning study-topic-error" required>
+                  <p class="field__hint" id="study-topic-hint">A chapter, concept or question you want to work through. Up to 120 characters; nothing is truncated.</p>
+                  <p class="field__warning" id="study-topic-warning" data-topic-warning role="status" aria-live="polite" hidden></p>
                   <p class="field__error" id="study-topic-error" data-field-error="topic" hidden>
                     <svg class="icon" aria-hidden="true"><use href="#icon-alert"></use></svg>
                     <span data-field-error-text></span>
@@ -481,19 +482,20 @@
                 <div class="field" data-field="notes">
                   <div class="field__head">
                     <label class="field__label" for="study-notes">Your notes</label>
-                    <span class="field__count" data-notes-counter>0 / 5,000</span>
+                    <span class="field__count" data-notes-counter>0 / 20,000</span>
                   </div>
-                  <textarea class="field__input field__input--textarea" id="study-notes" name="notes" rows="8" maxlength="5000" placeholder="Paste a few paragraphs from your lecture notes, or explain the topic in your own words…" aria-describedby="study-notes-hint study-notes-error" required></textarea>
-                  <p class="field__hint" id="study-notes-hint">The local mock generator draws its summary and cards from these words.</p>
+                  <textarea class="field__input field__input--textarea" id="study-notes" name="notes" rows="8" data-max-length="20000" placeholder="Paste a few paragraphs from your lecture notes, or explain the topic in your own words…" aria-describedby="study-notes-hint study-notes-warning study-notes-error" required></textarea>
+                  <p class="field__hint" id="study-notes-hint">The local mock generator draws its summary and cards from these words. Up to 20,000 characters; nothing is truncated.</p>
+                  <p class="field__warning" id="study-notes-warning" data-notes-warning role="status" aria-live="polite" hidden></p>
                   <p class="field__error" id="study-notes-error" data-field-error="notes" hidden>
                     <svg class="icon" aria-hidden="true"><use href="#icon-alert"></use></svg>
                     <span data-field-error-text></span>
                   </p>
                 </div>
 
-                <fieldset class="choice-group">
+                <fieldset class="choice-group" data-settings-group="answer-style" aria-describedby="study-answer-style-hint study-answer-style-error">
                   <legend class="choice-group__legend">Answer style</legend>
-                  <p class="choice-group__hint">Sets the tone of the summary and flashcards.</p>
+                  <p class="choice-group__hint" id="study-answer-style-hint">Sets the tone of the summary and flashcards.</p>
                   <div class="choice-grid">
                     <label class="choice-card">
                       <input class="sr-only" type="radio" name="answer-style" value="kid">
@@ -534,11 +536,15 @@
                       </span>
                     </label>
                   </div>
+                  <p class="field__error choice-group__error" id="study-answer-style-error" data-settings-error role="alert" hidden>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-alert"></use></svg>
+                    <span data-settings-error-text></span>
+                  </p>
                 </fieldset>
 
-                <fieldset class="choice-group">
+                <fieldset class="choice-group" data-settings-group="quiz-difficulty" aria-describedby="study-difficulty-hint study-difficulty-error">
                   <legend class="choice-group__legend">Quiz difficulty</legend>
-                  <p class="choice-group__hint">Every quiz has five questions; difficulty sets the challenge and card count.</p>
+                  <p class="choice-group__hint" id="study-difficulty-hint">Every quiz has five questions; difficulty sets the challenge and card count.</p>
                   <div class="choice-grid choice-grid--compact">
                     <label class="choice-card choice-card--compact">
                       <input class="sr-only" type="radio" name="quiz-difficulty" value="easy">
@@ -579,6 +585,10 @@
                       </span>
                     </label>
                   </div>
+                  <p class="field__error choice-group__error" id="study-difficulty-error" data-settings-error role="alert" hidden>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-alert"></use></svg>
+                    <span data-settings-error-text></span>
+                  </p>
                 </fieldset>
 
                 <div class="study-form__actions">
@@ -599,9 +609,12 @@
                   <span class="study-alert__icon" aria-hidden="true">
                     <svg class="icon" aria-hidden="true"><use href="#icon-alert"></use></svg>
                   </span>
-                  <div>
-                    <strong>The forge cooled down.</strong>
+                  <div class="study-alert__body">
+                    <strong data-study-error-title>The forge cooled down.</strong>
                     <p data-study-error-message>Something interrupted generation. Please try again.</p>
+                    <div class="study-alert__actions" data-study-error-actions hidden>
+                      <button class="btn btn--secondary btn--sm" type="button" data-study-retry>Retry generation</button>
+                    </div>
                   </div>
                 </div>
               </form>
@@ -1018,9 +1031,11 @@
   </div>
 
   <script src="js/storage.js"></script>
+  <script src="js/study-contract.js"></script>
   <script src="js/history.js"></script>
   <script src="js/mock-data.js"></script>
   <script src="js/mock-generator.js"></script>
+  <script src="js/generation.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/navigation.js"></script>
   <script src="js/learning.js"></script>

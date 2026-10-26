@@ -2021,6 +2021,23 @@ main:focus {
   font-weight: 650;
 }
 
+.field__count.is-over-limit {
+  color: var(--danger-strong);
+  font-weight: 700;
+}
+
+.field__warning {
+  margin-top: 6px;
+  color: var(--accent-strong);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.field__warning.is-over-limit {
+  color: var(--danger-strong);
+}
+
 .field__input {
   width: 100%;
   min-height: 44px;
@@ -2120,6 +2137,19 @@ main:focus {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 12px;
+}
+
+.choice-group.has-error .choice-card__body {
+  border-color: var(--danger-line);
+}
+
+.choice-group.has-error .choice-card input:checked + .choice-card__body {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger);
+}
+
+.choice-group__error {
+  margin-top: 8px;
 }
 
 .choice-card {
@@ -2354,6 +2384,18 @@ main:focus {
   height: 14px;
 }
 
+.study-alert__body {
+  min-width: 0;
+}
+
+.study-alert__actions {
+  margin-top: 8px;
+}
+
+.study-alert__actions[hidden] {
+  display: none;
+}
+
 .study-alert strong {
   display: block;
   font-size: 11px;
@@ -2365,6 +2407,7 @@ main:focus {
 }
 
 .field__error[hidden],
+.field__warning[hidden],
 .study-status[hidden],
 .study-alert[hidden],
 .study-result[hidden] {
