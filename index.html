@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MindForge — a premium study workspace for focused, deliberate learning. Shape the way you learn.">
+  <meta name="theme-color" content="#f4f0e8">
+  <title>MindForge — Dashboard</title>
+
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/responsive.css">
+
+  <script>
+    (function () {
+      var theme = 'light';
+      try {
+        var saved = localStorage.getItem('mindforge:theme');
+        if (saved) {
+          try { saved = JSON.parse(saved); } catch (error) { /* plain values are fine */ }
+        }
+        if (saved !== 'light' && saved !== 'dark') {
+          saved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        theme = saved;
+      } catch (error) {
+        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <svg class="icon-sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-dashboard" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="7" height="7" rx="2"></rect>
+      <rect x="14" y="3" width="7" height="7" rx="2"></rect>
+      <rect x="3" y="14" width="7" height="7" rx="2"></rect>
+      <rect x="14" y="14" width="7" height="7" rx="2"></rect>
+    </symbol>
+    <symbol id="icon-workspace" viewBox="0 0 24 24">
+      <path d="m12 3 9 5-9 5-9-5 9-5Z"></path>
+      <path d="m3 12 9 5 9-5"></path>
+      <path d="m3 16 9 5 9-5"></path>
+    </symbol>
+    <symbol id="icon-history" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 7v5l3 2"></path>
+    </symbol>
+    <symbol id="icon-progress" viewBox="0 0 24 24">
+      <path d="M3 3v18h18"></path>
+      <path d="m7 15 4-5 4 3 5-7"></path>
+    </symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24">
+      <path d="M4 7h10"></path>
+      <path d="M18 7h2"></path>
+      <circle cx="16" cy="7" r="2"></circle>
+      <path d="M4 17h2"></path>
+      <path d="M10 17h10"></path>
+      <circle cx="8" cy="17" r="2"></circle>
+    </symbol>
+    <symbol id="icon-menu" viewBox="0 0 24 24">
+      <path d="M4 7h16"></path>
+      <path d="M4 12h16"></path>
+      <path d="M4 17h16"></path>
+    </symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24">
+      <path d="m6 6 12 12"></path>
+      <path d="m18 6-12 12"></path>
+    </symbol>
+    <symbol id="icon-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4"></circle>
+      <path d="M12 2v2"></path>
+      <path d="M12 20v2"></path>
+      <path d="m4.93 4.93 1.42 1.42"></path>
+      <path d="m17.66 17.66 1.41 1.41"></path>
+      <path d="M2 12h2"></path>
+      <path d="M20 12h2"></path>
+      <path d="m6.34 17.66-1.41 1.41"></path>
+      <path d="m19.07 4.93-1.42 1.42"></path>
+    </symbol>
+    <symbol id="icon-moon" viewBox="0 0 24 24">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path>
+    </symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24">
+      <path d="M12 5v14"></path>
+      <path d="M5 12h14"></path>
+    </symbol>
+    <symbol id="icon-arrow-right" viewBox="0 0 24 24">
+      <path d="M5 12h14"></path>
+      <path d="m13 6 6 6-6 6"></path>
+    </symbol>
+    <symbol id="icon-arrow-up-right" viewBox="0 0 24 24">
+      <path d="M7 17 17 7"></path>
+      <path d="M8 7h9v9"></path>
+    </symbol>
+    <symbol id="icon-flame" viewBox="0 0 24 24">
+      <path d="M12 22c4 0 6.5-2.5 6.5-6 0-2.5-1.3-4.6-3.6-6.4.2 2-1 3.4-2.4 3.9.4-3.4-1.2-6.4-4-8.5.2 3.7-3.5 6.1-3.5 10.5C5 19.2 7.5 22 12 22Z"></path>
+    </symbol>
+    <symbol id="icon-book" viewBox="0 0 24 24">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"></path>
+    </symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24">
+      <path d="m5 12 4.5 4.5L19 7"></path>
+    </symbol>
+    <symbol id="icon-check-circle" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="m8.5 12 2.5 2.5 4.5-5"></path>
+    </symbol>
+    <symbol id="icon-cards" viewBox="0 0 24 24">
+      <rect x="7" y="3" width="14" height="14" rx="2"></rect>
+      <path d="M3 7v12a2 2 0 0 0 2 2h12"></path>
+    </symbol>
+    <symbol id="icon-target" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"></circle>
+      <circle cx="12" cy="12" r="5"></circle>
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"></circle>
+    </symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 7v5l3 2"></path>
+    </symbol>
+    <symbol id="icon-spark" viewBox="0 0 24 24">
+      <path d="M12 2.5c.7 5.8 3.7 8.8 9.5 9.5-5.8.7-8.8 3.7-9.5 9.5-.7-5.8-3.7-8.8-9.5-9.5 5.8-.7 8.8-3.7 9.5-9.5Z" fill="currentColor" stroke="none"></path>
+    </symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24">
+      <rect x="4" y="10" width="16" height="11" rx="2.5"></rect>
+      <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+    </symbol>
+  </svg>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="MindForge navigation">
+      <div class="sidebar__head">
+        <a class="brand" href="#dashboard" data-nav="dashboard" aria-label="MindForge dashboard">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 40 40" fill="none">
+              <path d="M10.5 28V13.5L20 22l9.5-8.5V28" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+              <circle cx="20" cy="8.5" r="1.8" fill="currentColor"></circle>
+            </svg>
+          </span>
+          <span class="brand__text">
+            <span class="brand__name">MindForge</span>
+            <span class="brand__tagline">Shape the way you learn.</span>
+          </span>
+        </a>
+        <button class="icon-button sidebar__close" id="sidebar-close" type="button" aria-label="Close navigation">
+          <svg class="icon" aria-hidden="true"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+
+      <nav class="nav" aria-label="Primary navigation">
+        <p class="nav__label">Workspace</p>
+        <ul class="nav__list">
+          <li>
+            <a class="nav__link" href="#dashboard" data-nav="dashboard" aria-current="page">
+              <svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
+              <span>Dashboard</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav__link" href="#workspace" data-nav="workspace">
+              <svg class="icon" aria-hidden="true"><use href="#icon-workspace"></use></svg>
+              <span>Study Workspace</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav__link" href="#history" data-nav="history">
+              <svg class="icon" aria-hidden="true"><use href="#icon-history"></use></svg>
+              <span>History</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav__link" href="#progress" data-nav="progress">
+              <svg class="icon" aria-hidden="true"><use href="#icon-progress"></use></svg>
+              <span>Progress</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav__link" href="#settings" data-nav="settings">
+              <svg class="icon" aria-hidden="true"><use href="#icon-settings"></use></svg>
+              <span>Settings</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="sidebar__foot">
+        <div class="sidebar-note">
+          <span class="sidebar-note__icon" aria-hidden="true">
+            <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
+          </span>
+          <p>Every session is a small act of becoming.</p>
+        </div>
+
+        <a class="user-chip" href="#settings" data-nav="settings" aria-label="Open settings">
+          <span class="avatar" data-user-initials>AM</span>
+          <span class="user-chip__text">
+            <strong data-user-name>Alex Morgan</strong>
+            <span data-user-plan>Scholar plan</span>
+          </span>
+          <svg class="icon user-chip__arrow" aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg>
+        </a>
+      </div>
+    </aside>
+
+    <button class="sidebar-scrim" id="sidebar-scrim" type="button" tabindex="-1" aria-hidden="true" aria-label="Close navigation"></button>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar__inner">
+          <div class="topbar__left">
+            <button class="icon-button menu-toggle" id="menu-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation">
+              <svg class="icon" aria-hidden="true"><use href="#icon-menu"></use></svg>
+            </button>
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+              <span class="breadcrumb__root">Workspace</span>
+              <span class="breadcrumb__sep" aria-hidden="true">/</span>
+              <span class="breadcrumb__current" id="current-section" aria-current="page">Dashboard</span>
+            </nav>
+          </div>
+          <div class="topbar__right">
+            <span class="topbar__date" data-topbar-date>—</span>
+            <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark theme">
+              <span class="theme-toggle__icon" aria-hidden="true">
+                <svg class="icon theme-toggle__sun"><use href="#icon-sun"></use></svg>
+                <svg class="icon theme-toggle__moon"><use href="#icon-moon"></use></svg>
+              </span>
+              <span class="theme-toggle__label" data-theme-label>Light</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="content" id="main-content" tabindex="-1">
+        <section class="view" id="dashboard" data-view="dashboard" data-title="Dashboard" aria-labelledby="dashboard-title">
+          <section class="hero" aria-labelledby="dashboard-title">
+            <div class="hero__content">
+              <p class="eyebrow eyebrow--light" data-welcome-date>—</p>
+              <h1 class="hero__title" id="dashboard-title">Welcome back, <em data-user-first-name>Alex</em>.</h1>
+              <p class="hero__copy" data-welcome-message>Gathering your study rhythm…</p>
+              <div class="hero__actions">
+                <button class="btn btn--hero" type="button" data-action="create-session">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+                  Create study session
+                </button>
+                <a class="btn btn--ghost-light" href="#history" data-nav="history">
+                  View history
+                  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+                </a>
+              </div>
+            </div>
+
+            <div class="hero__aside">
+              <div class="focus-dial" data-focus-dial role="img" aria-label="Today's focus">
+                <div class="focus-dial__inner">
+                  <strong data-focus-percent>0%</strong>
+                  <span>of daily goal</span>
+                </div>
+              </div>
+              <div class="hero__aside-copy">
+                <p class="focus-caption">Today's focus</p>
+                <p class="focus-detail"><strong data-focus-minutes>0 min</strong><span>of <span data-focus-goal>90 min</span></span></p>
+              </div>
+            </div>
+
+            <div class="hero__ornament" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+          </section>
+
+          <section class="stats-section" aria-label="Study statistics">
+            <div class="stat-grid">
+              <article class="card stat-card">
+                <div class="stat-card__head">
+                  <span class="stat-card__icon stat-card__icon--ember" aria-hidden="true">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg>
+                  </span>
+                  <span class="stat-card__label">Study sessions</span>
+                </div>
+                <p class="stat-card__value"><span data-stat="sessions">—</span></p>
+                <p class="stat-card__note" data-stat-note="sessions">—</p>
+              </article>
+
+              <article class="card stat-card">
+                <div class="stat-card__head">
+                  <span class="stat-card__icon stat-card__icon--sage" aria-hidden="true">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg>
+                  </span>
+                  <span class="stat-card__label">Quizzes completed</span>
+                </div>
+                <p class="stat-card__value"><span data-stat="quizzes">—</span></p>
+                <p class="stat-card__note" data-stat-note="quizzes">—</p>
+              </article>
+
+              <article class="card stat-card">
+                <div class="stat-card__head">
+                  <span class="stat-card__icon stat-card__icon--gold" aria-hidden="true">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-target"></use></svg>
+                  </span>
+                  <span class="stat-card__label">Average quiz score</span>
+                </div>
+                <p class="stat-card__value"><span data-stat="score">—</span><span class="stat-card__unit">%</span></p>
+                <p class="stat-card__note" data-stat-note="score">—</p>
+              </article>
+
+              <article class="card stat-card">
+                <div class="stat-card__head">
+                  <span class="stat-card__icon stat-card__icon--blue" aria-hidden="true">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-cards"></use></svg>
+                  </span>
+                  <span class="stat-card__label">Mastered flashcards</span>
+                </div>
+                <p class="stat-card__value"><span data-stat="cards">—</span></p>
+                <p class="stat-card__note" data-stat-note="cards">—</p>
+                <div class="stat-card__meter" role="img" aria-label="Flashcard mastery">
+                  <span data-stat-meter="cards"></span>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <div class="dashboard-grid">
+            <section class="card activity-card" aria-labelledby="activity-title">
+              <header class="card__header">
+                <div>
+                  <p class="card__eyebrow">Focus</p>
+                  <h2 class="card__title" id="activity-title">Study activity</h2>
+                </div>
+                <span class="card__tag">Last 7 days</span>
+              </header>
+
+              <div class="activity-metrics">
+                <div class="activity-total">
+                  <strong data-activity-total>—</strong>
+                  <span>total focus time</span>
+                </div>
+                <div class="activity-compare">
+                  <span class="trend" data-activity-trend>—</span>
+                  <span>vs previous 7 days</span>
+                </div>
+              </div>
+
+              <figure class="chart-figure">
+                <div class="chart" data-activity-chart role="img" aria-label="Study activity over the last seven days"></div>
+                <ul class="sr-only" data-activity-details></ul>
+              </figure>
+
+              <div class="activity-footer">
+                <div>
+                  <span class="meta-label">Peak focus</span>
+                  <strong data-activity-peak>—</strong>
+                </div>
+                <div>
+                  <span class="meta-label">Daily average</span>
+                  <strong data-activity-average>—</strong>
+                </div>
+              </div>
+            </section>
+
+            <aside class="card goal-card" aria-labelledby="goal-title">
+              <header class="card__header">
+                <div>
+                  <p class="card__eyebrow">Momentum</p>
+                  <h2 class="card__title" id="goal-title">Weekly goal</h2>
+                </div>
+              </header>
+
+              <div class="goal-ring-wrap">
+                <div class="goal-ring" data-goal-ring role="img" aria-label="Weekly goal progress">
+                  <div class="goal-ring__inner">
+                    <strong data-goal-percent>—</strong>
+                    <span>of goal</span>
+                  </div>
+                </div>
+              </div>
+
+              <p class="goal-message" data-goal-message>—</p>
+
+              <ul class="goal-stats">
+                <li><span>Study sessions</span><strong data-goal-sessions>—</strong></li>
+                <li><span>Focus time</span><strong data-goal-focus>—</strong></li>
+                <li><span>Daily average</span><strong data-goal-average>—</strong></li>
+              </ul>
+
+              <div class="goal-streak">
+                <span class="goal-streak__icon" aria-hidden="true">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-flame"></use></svg>
+                </span>
+                <p><strong><span data-streak>—</span>-day streak</strong><span>A personal best</span></p>
+              </div>
+            </aside>
+          </div>
+
+          <section class="card sessions-card" aria-labelledby="recent-title">
+            <header class="card__header sessions-card__header">
+              <div>
+                <p class="card__eyebrow">Archive</p>
+                <h2 class="card__title" id="recent-title">Recent study sessions</h2>
+              </div>
+              <a class="link-arrow" href="#history" data-nav="history">
+                View all
+                <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg>
+              </a>
+            </header>
+            <ul class="session-list" data-recent-sessions aria-label="Five most recent study sessions"></ul>
+          </section>
+        </section>
+
+        <section class="view" id="workspace" data-view="workspace" data-title="Study Workspace" aria-labelledby="workspace-title" hidden>
+          <header class="page-header page-header--split">
+            <div class="page-header__copy">
+              <p class="eyebrow">The forge</p>
+              <h1 class="page-title" id="workspace-title">Study Workspace</h1>
+              <p class="page-subtitle">Where a topic becomes a session — carefully shaped, then put into practice.</p>
+            </div>
+            <a class="btn btn--secondary" href="#dashboard" data-nav="dashboard">
+              <svg class="icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+              Back to dashboard
+            </a>
+          </header>
+
+          <div class="workspace-grid">
+            <article class="card workspace-panel">
+              <div class="workspace-panel__top">
+                <span class="status-chip"><span class="status-chip__dot" aria-hidden="true"></span>Part 2 · In the forge</span>
+                <span class="workspace-panel__mark" aria-hidden="true">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
+                </span>
+              </div>
+              <h2 class="workspace-panel__title">Your next session starts here.</h2>
+              <p class="workspace-panel__copy">Soon you will be able to bring any topic, chapter or set of notes and shape it into a focused study session. The foundation is set; the builder is next.</p>
+
+              <ol class="blueprint">
+                <li>
+                  <span class="blueprint__num">01</span>
+                  <div><strong>Choose your material</strong><span>Bring a topic, a chapter, or notes of your own.</span></div>
+                </li>
+                <li>
+                  <span class="blueprint__num">02</span>
+                  <div><strong>Shape the session</strong><span>Choose guided reading, a quiz, or a flashcard deck.</span></div>
+                </li>
+                <li>
+                  <span class="blueprint__num">03</span>
+                  <div><strong>Practice with intent</strong><span>Work through it, then return to see what stuck.</span></div>
+                </li>
+              </ol>
+
+              <p class="text-note">Preview only — nothing is generated in this build.</p>
+            </article>
+
+            <div class="method-grid">
+              <article class="card method-card">
+                <div class="method-card__top">
+                  <span class="method-card__icon method-card__icon--sage" aria-hidden="true">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-book"></use></svg>
+                  </span>
+                  <span class="method-card__tag">Part 2</span>
+                </div>
+                <h3>Guided reading</h3>
+                <p>Close reading with structure — long material distilled into notes you can hold onto.</p>
+              </article>
+
+              <article class="card method-card">
+                <div class="method-card__top">
+                  <span class="method-card__icon method-card__icon--ember" aria-hidden="true">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg>
+                  </span>
+                  <span class="method-card__tag">Part 2</span>
+                </div>
+                <h3>Adaptive quizzes</h3>
+                <p>Retrieval practice that meets you where you are and follows what you almost know.</p>
+              </article>
+
+              <article class="card method-card">
+                <div class="method-card__top">
+                  <span class="method-card__icon method-card__icon--blue" aria-hidden="true">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-cards"></use></svg>
+                  </span>
+                  <span class="method-card__tag">Part 2</span>
+                </div>
+                <h3>Smart flashcards</h3>
+                <p>Spaced repetition built around your memory, not a generic schedule.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="history" data-view="history" data-title="History" aria-labelledby="history-title" hidden>
+          <header class="page-header page-header--split">
+            <div class="page-header__copy">
+              <p class="eyebrow">Your archive</p>
+              <h1 class="page-title" id="history-title">History</h1>
+              <p class="page-subtitle">A record of the hours you have given to learning.</p>
+            </div>
+            <button class="btn btn--primary" type="button" data-action="create-session">
+              <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg>
+              Create study session
+            </button>
+          </header>
+
+          <div class="summary-grid">
+            <article class="card summary-card">
+              <span class="summary-card__label">Total sessions</span>
+              <strong data-history-total>—</strong>
+              <span class="summary-card__meta">All time</span>
+            </article>
+            <article class="card summary-card">
+              <span class="summary-card__label">Focus time</span>
+              <strong data-history-minutes>—</strong>
+              <span class="summary-card__meta">Across every session</span>
+            </article>
+            <article class="card summary-card">
+              <span class="summary-card__label">Average quiz score</span>
+              <strong data-history-average>—</strong>
+              <span class="summary-card__meta">Across all quizzes</span>
+            </article>
+          </div>
+
+          <section class="card sessions-card" aria-labelledby="history-list-title">
+            <header class="card__header sessions-card__header">
+              <div>
+                <p class="card__eyebrow">Timeline</p>
+                <h2 class="card__title" id="history-list-title">All study sessions</h2>
+              </div>
+              <span class="count-badge" data-history-entries>—</span>
+            </header>
+            <ul class="session-list session-list--history" data-history-sessions aria-label="All study sessions"></ul>
+          </section>
+        </section>
+
+        <section class="view" id="progress" data-view="progress" data-title="Progress" aria-labelledby="progress-title" hidden>
+          <header class="page-header">
+            <p class="eyebrow">Insight</p>
+            <h1 class="page-title" id="progress-title">Progress</h1>
+            <p class="page-subtitle">The long view of what you are learning, and what is beginning to stick.</p>
+          </header>
+
+          <div class="progress-layout">
+            <section class="card progress-preview" aria-labelledby="progress-preview-title">
+              <div class="progress-preview__visual" aria-hidden="true">
+                <div class="ghost-chart">
+                  <span style="--h: 28%"></span>
+                  <span style="--h: 46%"></span>
+                  <span style="--h: 38%"></span>
+                  <span style="--h: 62%"></span>
+                  <span style="--h: 54%"></span>
+                  <span style="--h: 78%"></span>
+                  <span style="--h: 70%"></span>
+                  <span style="--h: 92%"></span>
+                </div>
+              </div>
+              <div class="progress-preview__copy">
+                <span class="status-chip"><span class="status-chip__dot" aria-hidden="true"></span>Part 3 · Taking shape</span>
+                <h2 id="progress-preview-title">Mastery, made visible.</h2>
+                <p>Once study sessions are live, this space will trace the shape of your understanding over time — not just what you studied, but what endured.</p>
+                <ul class="check-list">
+                  <li>Mastery curves by subject</li>
+                  <li>Retention and review timing</li>
+                  <li>Strengths, gaps and gentle nudges</li>
+                </ul>
+                <a class="link-arrow" href="#history" data-nav="history">
+                  See your session history
+                  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg>
+                </a>
+              </div>
+            </section>
+
+            <div class="preview-grid">
+              <article class="card preview-card">
+                <span class="preview-card__icon" aria-hidden="true">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-target"></use></svg>
+                </span>
+                <h3>Retention</h3>
+                <p>See what you remember a week later, not just what felt familiar in the moment.</p>
+                <span class="preview-card__tag">Part 3</span>
+              </article>
+              <article class="card preview-card">
+                <span class="preview-card__icon" aria-hidden="true">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-book"></use></svg>
+                </span>
+                <h3>Subject depth</h3>
+                <p>Follow each subject from first principles to confident recall.</p>
+                <span class="preview-card__tag">Part 3</span>
+              </article>
+              <article class="card preview-card">
+                <span class="preview-card__icon" aria-hidden="true">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
+                </span>
+                <h3>Weekly rhythm</h3>
+                <p>Understand the days and habits where your focus comes most easily.</p>
+                <span class="preview-card__tag">Part 3</span>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="settings" data-view="settings" data-title="Settings" aria-labelledby="settings-title" hidden>
+          <header class="page-header">
+            <p class="eyebrow">Preferences</p>
+            <h1 class="page-title" id="settings-title">Settings</h1>
+            <p class="page-subtitle">A workspace that feels like yours. Everything here is stored on this device.</p>
+          </header>
+
+          <div class="settings-grid">
+            <section class="card settings-card" aria-labelledby="appearance-title">
+              <div class="settings-card__head">
+                <span class="settings-card__icon" aria-hidden="true">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-sun"></use></svg>
+                </span>
+                <div>
+                  <h2 id="appearance-title">Appearance</h2>
+                  <p>Choose the light you like to study in.</p>
+                </div>
+              </div>
+
+              <fieldset class="theme-options">
+                <legend class="sr-only">Colour theme</legend>
+                <label class="theme-option">
+                  <input class="sr-only" type="radio" name="theme" value="light" data-theme-option>
+                  <span class="theme-option__card">
+                    <span class="theme-option__preview theme-option__preview--light" aria-hidden="true">
+                      <span class="theme-option__preview-nav"></span>
+                      <span class="theme-option__preview-body"><span></span><span></span><span></span></span>
+                    </span>
+                    <span class="theme-option__label">
+                      <span><strong>Light</strong><span>Warm paper &amp; ink</span></span>
+                      <span class="theme-option__check" aria-hidden="true">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
+                      </span>
+                    </span>
+                  </span>
+                </label>
+
+                <label class="theme-option">
+                  <input class="sr-only" type="radio" name="theme" value="dark" data-theme-option>
+                  <span class="theme-option__card">
+                    <span class="theme-option__preview theme-option__preview--dark" aria-hidden="true">
+                      <span class="theme-option__preview-nav"></span>
+                      <span class="theme-option__preview-body"><span></span><span></span><span></span></span>
+                    </span>
+                    <span class="theme-option__label">
+                      <span><strong>Dark</strong><span>Deep ink &amp; ember</span></span>
+                      <span class="theme-option__check" aria-hidden="true">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>
+                      </span>
+                    </span>
+                  </span>
+                </label>
+              </fieldset>
+
+              <p class="settings-hint">
+                <svg class="icon" aria-hidden="true"><use href="#icon-lock"></use></svg>
+                Your preference is saved on this device and survives a refresh.
+              </p>
+            </section>
+
+            <section class="card settings-card" aria-labelledby="study-preferences-title">
+              <div class="settings-card__head">
+                <span class="settings-card__icon settings-card__icon--sage" aria-hidden="true">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-workspace"></use></svg>
+                </span>
+                <div>
+                  <h2 id="study-preferences-title">Study preferences</h2>
+                  <p>Fine tuning for the study builder.</p>
+                </div>
+              </div>
+
+              <ul class="settings-list">
+                <li>
+                  <div><strong>Daily focus goal</strong><span>90 minutes</span></div>
+                  <span class="soon-tag">Part 2</span>
+                </li>
+                <li>
+                  <div><strong>Default session style</strong><span>Adaptive</span></div>
+                  <span class="soon-tag">Part 2</span>
+                </li>
+                <li>
+                  <div><strong>Review reminders</strong><span>Quiet by default</span></div>
+                  <span class="soon-tag">Part 3</span>
+                </li>
+                <li>
+                  <div><strong>Motion</strong><span>Follows your system setting</span></div>
+                  <span class="soon-tag soon-tag--on">Automatic</span>
+                </li>
+              </ul>
+            </section>
+
+            <section class="card settings-card settings-card--wide" aria-labelledby="about-title">
+              <div class="about-card">
+                <div class="about-card__copy">
+                  <p class="card__eyebrow">The build</p>
+                  <h2 id="about-title">About MindForge</h2>
+                  <p>Phase 0, Part 1 — dashboard foundation. A local-first front-end with no account, no backend and no AI calls yet. Session generation, quiz results and progress analytics arrive in later parts.</p>
+                </div>
+                <dl class="about-list">
+                  <div><dt>Version</dt><dd>0.1.0 · Foundation</dd></div>
+                  <div><dt>Storage</dt><dd>Local browser only</dd></div>
+                  <div><dt>Navigation</dt><dd>Single page, no reload</dd></div>
+                </dl>
+              </div>
+            </section>
+          </div>
+        </section>
+
+      </main>
+
+      <footer class="app-footer">
+        <p>MindForge · Shape the way you learn.</p>
+        <p>Local-first demo <span aria-hidden="true">·</span> <span data-year>2026</span></p>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
+    <span class="toast__icon" aria-hidden="true">
+      <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
+    </span>
+    <span id="toast-message"></span>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/mock-data.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

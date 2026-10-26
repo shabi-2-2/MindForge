@@ -1,0 +1,639 @@
+/* ==========================================================================
+   MindForge — responsive adjustments
+   ========================================================================== */
+
+/* Large laptops: keep the sidebar, relax the four-across statistics. */
+@media (max-width: 1279px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat-card {
+    min-height: 150px;
+  }
+}
+
+/* Tablet: the sidebar becomes an off-canvas drawer. */
+@media (max-width: 1140px) {
+  .sidebar {
+    z-index: 60;
+    width: min(320px, 86vw);
+    padding: var(--space-5) var(--space-4) var(--space-5);
+    transform: translateX(-102%);
+    box-shadow: none;
+    transition: transform 320ms var(--ease), box-shadow 320ms var(--ease);
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar__close {
+    display: grid;
+  }
+
+  .sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    display: block;
+    background: rgba(13, 13, 11, 0.48);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 280ms var(--ease), visibility 280ms var(--ease);
+  }
+
+  body.nav-open .sidebar-scrim {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .main {
+    margin-left: 0;
+  }
+
+  .menu-toggle {
+    display: grid;
+  }
+
+  .content {
+    padding-top: var(--space-7);
+  }
+
+  .topbar__inner {
+    max-width: none;
+  }
+}
+
+/* Narrow tablets and large phones. */
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .goal-card {
+    display: grid;
+    grid-template-areas:
+      "head head"
+      "ring message"
+      "ring stats"
+      "ring streak";
+    grid-template-columns: 154px minmax(0, 1fr);
+    column-gap: var(--space-7);
+    align-items: center;
+  }
+
+  .goal-card .card__header {
+    grid-area: head;
+  }
+
+  .goal-ring-wrap {
+    grid-area: ring;
+    align-self: center;
+    padding: var(--space-5) 0 0;
+  }
+
+  .goal-message {
+    grid-area: message;
+    margin-top: var(--space-5);
+    text-align: left;
+  }
+
+  .goal-stats {
+    grid-area: stats;
+    margin-top: 0;
+  }
+
+  .goal-streak {
+    grid-area: streak;
+    margin-top: 0;
+    padding-top: var(--space-4);
+    border-top: var(--border-subtle);
+  }
+
+  .workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .method-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .workspace-panel {
+    padding: var(--space-7);
+  }
+
+  .progress-preview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .progress-preview__visual {
+    min-height: 220px;
+    border-right: 0;
+    border-bottom: var(--border-subtle);
+    padding: var(--space-6);
+  }
+
+  .ghost-chart {
+    height: 170px;
+  }
+
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Small tablets and landscape phones. */
+@media (max-width: 760px) {
+  :root {
+    --topbar-height: 64px;
+  }
+
+  .content {
+    padding: var(--space-6) var(--space-5) var(--space-7);
+  }
+
+  .topbar__inner {
+    padding-inline: var(--space-5);
+  }
+
+  .topbar__date {
+    display: none;
+  }
+
+  .page-header {
+    margin-bottom: var(--space-6);
+  }
+
+  .page-header--split {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-5);
+  }
+
+  .page-header--split .btn {
+    align-self: flex-start;
+  }
+
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-6);
+    padding: var(--space-6);
+  }
+
+  .hero__aside {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--space-4);
+    padding: 0;
+  }
+
+  .hero__aside-copy {
+    text-align: left;
+  }
+
+  .focus-dial {
+    width: 128px;
+  }
+
+  .focus-dial__inner strong {
+    font-size: 1.9rem;
+  }
+
+  .hero__ornament {
+    opacity: 0.4;
+  }
+
+  .hero__title {
+    font-size: clamp(2.5rem, 7vw, 3.3rem);
+  }
+
+  .hero__copy {
+    font-size: 12.5px;
+  }
+
+  .session-row {
+    grid-template-columns: 40px minmax(0, 1fr) 112px;
+    gap: var(--space-3);
+  }
+
+  .session-row__duration {
+    display: none;
+  }
+
+  .activity-footer {
+    gap: var(--space-7);
+  }
+
+  .settings-card {
+    padding: var(--space-6);
+  }
+}
+
+/* Phones. */
+@media (max-width: 680px) {
+  .method-grid,
+  .preview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .method-card {
+    padding: var(--space-5);
+  }
+
+  .method-card p {
+    max-width: 54ch;
+  }
+
+  .summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .summary-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 3px var(--space-4);
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .summary-card__label {
+    grid-column: 1;
+  }
+
+  .summary-card strong {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    font-size: 2rem;
+  }
+
+  .summary-card__meta {
+    grid-column: 1;
+  }
+
+  .about-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .topbar__date {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .theme-toggle {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .theme-toggle__label {
+    display: none;
+  }
+
+  .breadcrumb__root,
+  .breadcrumb__sep {
+    display: none;
+  }
+
+  .chart {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: var(--space-2);
+    min-height: 216px;
+  }
+
+  .chart__plot {
+    min-height: 216px;
+  }
+
+  .chart__bars {
+    gap: var(--space-1);
+  }
+
+  .chart__bar {
+    width: min(78%, 30px);
+  }
+
+  .chart__date {
+    display: none;
+  }
+
+  .chart__axis {
+    padding-bottom: 26px;
+  }
+
+  .chart__grid {
+    bottom: 26px;
+  }
+
+  .chart__col {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .goal-card {
+    padding: var(--space-5);
+  }
+
+  .sessions-card__header {
+    padding: var(--space-5) var(--space-4) var(--space-4);
+  }
+
+  .session-row {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 13px var(--space-4);
+  }
+
+  .type-badge {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+  }
+
+  .type-badge .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .session-row__title {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .session-row__meta {
+    gap: 5px;
+    font-size: 10px;
+  }
+
+  .result-pill {
+    min-width: 0;
+    height: 25px;
+    padding: 0 8px;
+    font-size: 9px;
+  }
+
+  .activity-footer {
+    justify-content: space-between;
+    gap: var(--space-5);
+  }
+
+  .app-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding-bottom: var(--space-5);
+  }
+
+  .toast {
+    right: var(--space-4);
+    bottom: var(--space-4);
+    max-width: calc(100vw - var(--space-7));
+  }
+
+  .settings-card {
+    padding: var(--space-5);
+  }
+
+  .progress-preview__visual {
+    min-height: 180px;
+    padding: var(--space-5);
+  }
+
+  .ghost-chart {
+    height: 140px;
+  }
+
+  .progress-preview__copy {
+    padding: var(--space-6);
+  }
+}
+
+@media (max-width: 560px) {
+  .content {
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+
+  .topbar__inner {
+    padding-inline: var(--space-4);
+  }
+
+  .topbar__left,
+  .topbar__right {
+    gap: var(--space-2);
+  }
+
+  .hero {
+    padding: var(--space-5);
+  }
+
+  .hero__title {
+    font-size: clamp(2.25rem, 9.4vw, 2.8rem);
+  }
+
+  .hero__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero__actions .btn {
+    width: 100%;
+  }
+
+  .hero__aside {
+    gap: var(--space-3);
+  }
+
+  .focus-dial {
+    width: 104px;
+  }
+
+  .focus-dial::before {
+    inset: 7px;
+  }
+
+  .focus-dial__inner strong {
+    font-size: 1.65rem;
+  }
+
+  .focus-dial__inner span {
+    font-size: 7px;
+  }
+
+  .focus-detail {
+    font-size: 10px;
+  }
+
+  .stat-grid {
+    gap: 10px;
+  }
+
+  .stat-card {
+    gap: 10px;
+    min-height: 142px;
+    padding: var(--space-4);
+  }
+
+  .stat-card::after {
+    width: 110px;
+    height: 110px;
+  }
+
+  .stat-card__head {
+    gap: 8px;
+  }
+
+  .stat-card__icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .stat-card__icon .icon {
+    width: 15px;
+    height: 15px;
+  }
+
+  .stat-card__label {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .stat-card__value {
+    font-size: 2.05rem;
+  }
+
+  .stat-card__note {
+    font-size: 9.5px;
+  }
+
+  .activity-card {
+    padding: var(--space-5);
+  }
+
+  .card__title {
+    font-size: 20px;
+  }
+
+  .activity-metrics {
+    margin-top: var(--space-4);
+  }
+
+  .activity-total strong {
+    font-size: 1.85rem;
+  }
+
+  .activity-compare {
+    font-size: 9px;
+  }
+
+  .goal-card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .goal-card .card__header {
+    width: 100%;
+  }
+
+  .goal-ring-wrap {
+    padding: var(--space-5) 0 var(--space-4);
+  }
+
+  .goal-ring {
+    width: 138px;
+  }
+
+  .goal-message {
+    margin-top: 0;
+    text-align: center;
+  }
+
+  .goal-stats {
+    width: 100%;
+    margin-top: var(--space-4);
+  }
+
+  .goal-streak {
+    width: 100%;
+    margin-top: 0;
+    padding-top: var(--space-4);
+    border-top: var(--border-subtle);
+  }
+
+  .session-row__meta {
+    gap: 5px;
+    font-size: 10px;
+  }
+
+  .theme-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .theme-option__preview {
+    height: 86px;
+  }
+
+  .page-title {
+    font-size: clamp(2.1rem, 8vw, 2.6rem);
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+  }
+
+  .page-header--split .btn,
+  .btn {
+    max-width: 100%;
+  }
+
+  .session-row__title {
+    font-size: 12.5px;
+  }
+
+  .result-pill {
+    min-width: 0;
+  }
+
+  .settings-hint {
+    font-size: 9px;
+  }
+
+  .app-footer {
+    padding-inline: var(--space-4);
+    font-size: 9px;
+  }
+}
+
+/* Very narrow phones. */
+@media (max-width: 380px) {
+  .stat-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stat-card {
+    min-height: 132px;
+  }
+
+  .stat-card::after {
+    opacity: 0.35;
+  }
+
+  .hero__aside {
+    flex-wrap: wrap;
+  }
+
+  .summary-card strong {
+    font-size: 1.8rem;
+  }
+
+  .toast {
+    font-size: 11px;
+  }
+}
