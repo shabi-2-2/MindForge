@@ -33,6 +33,24 @@ build/
 .env.*
 !.env.example
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+backend/venv/
+backend/.venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Local tooling
 coverage/
 playwright-report/

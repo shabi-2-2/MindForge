@@ -37,7 +37,7 @@
   GenerationError.prototype.constructor = GenerationError;
 
   var provider = null;
-  var providerName = 'local-mock';
+  var providerName = 'api-backend';
 
   function contract() {
     return global.MindForgeContract;
@@ -47,6 +47,67 @@
     return {
       name: error && error.name ? String(error.name) : 'Error'
     };
+  }
+
+  function getApiBaseUrl() {
+    if (global.MindForgeApiConfig && typeof global.MindForgeApiConfig.getApiBaseUrl === 'function') {
+      return global.MindForgeApiConfig.getApiBaseUrl();
+    }
+    return 'http://127.0.0.1:8000';
+  }
+
+  function apiProvider(input) {
+    var baseUrl = getApiBaseUrl();
+    var url = baseUrl.replace(/\/$/, '') + '/api/generate';
+
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        topic: input.topic,
+        notes: input.notes,
+        answerStyle: input.answerStyle,
+        difficulty: input.difficulty
+      })
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          if (response.status === 422) {
+            throw new GenerationError(
+              'Please fix the highlighted fields and try again.',
+              {
+                code: ERROR_CODES.INVALID_REQUEST,
+                recoverable: false
+              }
+            );
+          }
+          throw new GenerationError(
+            'Generation did not finish. Your notes are safe — check the details and try again.',
+            {
+              code: ERROR_CODES.GENERATION_FAILED,
+              recoverable: true,
+              diagnostics: { status: response.status }
+            }
+          );
+        }
+        return response.json();
+      })
+      .catch(function (error) {
+        if (error instanceof GenerationError) {
+          throw error;
+        }
+        // Network error or other failure
+        throw new GenerationError(
+          'Unable to reach the backend. Make sure the backend server is running.',
+          {
+            code: ERROR_CODES.PROVIDER_UNAVAILABLE,
+            recoverable: true,
+            diagnostics: { cause: safeCause(error) }
+          }
+        );
+      });
   }
 
   function localProvider(input) {
@@ -67,7 +128,7 @@
   }
 
   function getProvider() {
-    return provider || localProvider;
+    return provider || apiProvider;
   }
 
   function getProviderName() {
@@ -84,14 +145,14 @@
       ? typeof name === 'string' && name.trim()
         ? name.trim()
         : 'custom-provider'
-      : 'local-mock';
+      : 'api-backend';
 
     return providerName;
   }
 
   function resetProvider() {
     provider = null;
-    providerName = 'local-mock';
+    providerName = 'api-backend';
     return providerName;
   }
 

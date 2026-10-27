@@ -8,13 +8,51 @@ No frameworks, no backend, no AI calls. Plain HTML, CSS and vanilla JavaScript. 
 
 ## Run it
 
-There is no build step. Open `index.html` directly, or serve the folder locally:
+You need to run both the frontend and the backend.
+
+### Backend (FastAPI)
+
+1. Navigate to the backend directory:
+```bash
+cd backend
+```
+
+2. Create and activate a virtual environment (macOS):
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. (Optional) Copy and configure environment variables:
+```bash
+cp .env.example .env
+```
+
+5. Start the backend server:
+```bash
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+The backend API will be available at <http://127.0.0.1:8000>. API docs at <http://127.0.0.1:8000/docs>. Health check at <http://127.0.0.1:8000/api/health>.
+
+### Frontend
+
+There is no build step. Serve the folder locally from the root directory:
 
 ```bash
 python3 -m http.server 8000
 ```
 
+Or use a different port if 8000 is taken by the backend. If you use a different port, update the backend CORS settings and/or frontend API config.
+
 Then visit <http://localhost:8000>. A local server is recommended so clipboard, downloads and `localStorage` behave consistently.
+
+**Note:** The frontend now sends requests to the backend API by default. Make sure the backend is running, or you can configure the API URL via `MindForgeApiConfig.setApiBaseUrl()`.
 
 ## What is included
 
