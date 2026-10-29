@@ -1,18 +1,47 @@
-from fastapi import FastAPI, HTTPException, Request
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-import traceback
 
 from .config import settings
 from .schemas import GenerateRequest, GenerateResponse
-from .services.generation import mock_service
+from .services.generation import (
+    GeminiGenerationService,
+    GeminiServiceError,
+    get_generation_service,
+    generation_service,
+)
+
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if not settings.gemini_api_key:
+        logger.error(
+            "GEMINI_API_KEY is not configured. /api/generate will return a "
+            "configuration error until backend/.env is set."
+        )
+    if not settings.gemini_model:
+        logger.error(
+            "GEMINI_MODEL is not configured. /api/generate will return a "
+            "configuration error until backend/.env is set."
+        )
+
+    yield
+
+    await generation_service.aclose()
 
 
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="MindForge API - Study material generation backend",
+    lifespan=lifespan,
 )
 
 
@@ -34,7 +63,7 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
         errors.append({
             "field": field,
             "message": error["msg"],
-            "type": error["type"]
+            "type": error["type"],
         })
     return JSONResponse(
         status_code=422,
@@ -44,14 +73,20 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
+    headers = None
+    if isinstance(exc.detail, dict) and exc.detail.get("retryAfter"):
+        headers = {"Retry-After": str(exc.detail["retryAfter"])}
+
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},
+        headers=headers,
     )
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
+    logger.error("Unhandled server error (%s)", type(exc).__name__)
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},
@@ -63,14 +98,27 @@ async def health_check():
     return {"status": "ok", "service": "MindForge API"}
 
 
-@app.post(f"{settings.api_prefix}/generate")
-async def generate_study_material(request: GenerateRequest):
+@app.post(f"{settings.api_prefix}/generate", response_model=GenerateResponse)
+async def generate_study_material(
+    request: GenerateRequest,
+    service: GeminiGenerationService = Depends(get_generation_service),
+):
     try:
-        result = mock_service.generate(request)
-        # Validate output
-        validated = GenerateResponse(**result)
-        return validated.model_dump()
-    except ValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Generation failed")
+        return await service.generate(request)
+    except GeminiServiceError as exc:
+        detail = {
+            "code": exc.code,
+            "message": exc.message,
+        }
+        if exc.retry_after is not None:
+            detail["retryAfter"] = exc.retry_after
+        raise HTTPException(status_code=exc.status_code, detail=detail) from None
+    except Exception:
+        logger.error("Study generation failed unexpectedly")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "generation_failed",
+                "message": "Study generation failed. Please try again.",
+            },
+        ) from None

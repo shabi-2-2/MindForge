@@ -1,12 +1,13 @@
 /**
  * MindForge generation service
  * The single frontend entry point for study generation. It validates the
- * request, delegates to a provider (the local mock by default), validates the
- * provider response against the runtime contract and resolves with the
- * sanitised study-material object.
+ * request, delegates to the MindForge FastAPI backend (which calls Gemini on
+ * the server), validates the provider response against the runtime contract
+ * and resolves with the sanitised study-material object.
  *
- * A future api.js can call MindForgeGeneration.setProvider(apiProvider) without
- * changing the workspace UI or moving provider logic into components.
+ * The browser never talks to Gemini directly and never substitutes mock
+ * content when the backend is unavailable. A test double can still be supplied
+ * with MindForgeGeneration.setProvider(...).
  */
 (function (global) {
   'use strict';
@@ -16,6 +17,9 @@
     INVALID_RESPONSE: 'invalid-response',
     GENERATION_FAILED: 'generation-failed',
     PROVIDER_UNAVAILABLE: 'provider-unavailable',
+    CONFIGURATION_ERROR: 'configuration-error',
+    RATE_LIMITED: 'rate-limited',
+    PROVIDER_TIMEOUT: 'provider-timeout',
     CONTRACT_UNAVAILABLE: 'contract-unavailable'
   };
 
@@ -56,6 +60,81 @@
     return 'http://127.0.0.1:8000';
   }
 
+  function readErrorDetail(response) {
+    if (!response || typeof response.json !== 'function') {
+      return Promise.resolve(null);
+    }
+
+    return response.json().then(
+      function (body) {
+        var detail = body && body.detail;
+
+        if (typeof detail === 'string') {
+          return { message: detail, code: null };
+        }
+
+        if (detail && typeof detail === 'object') {
+          return {
+            message:
+              typeof detail.message === 'string' && detail.message.trim()
+                ? detail.message
+                : null,
+            code: typeof detail.code === 'string' ? detail.code : null
+          };
+        }
+
+        return null;
+      },
+      function () {
+        return null;
+      }
+    );
+  }
+
+  function mapErrorCode(status, providerCode) {
+    if (providerCode === 'configuration_error') {
+      return ERROR_CODES.CONFIGURATION_ERROR;
+    }
+
+    if (providerCode === 'provider_rate_limited' || status === 429) {
+      return ERROR_CODES.RATE_LIMITED;
+    }
+
+    if (providerCode === 'provider_timeout' || status === 504) {
+      return ERROR_CODES.PROVIDER_TIMEOUT;
+    }
+
+    if (status === 422) {
+      return ERROR_CODES.INVALID_REQUEST;
+    }
+
+    if (status === 502 || status === 503) {
+      return ERROR_CODES.PROVIDER_UNAVAILABLE;
+    }
+
+    return ERROR_CODES.GENERATION_FAILED;
+  }
+
+  function isRecoverable(status) {
+    return status === 429 || status === 500 || status === 502 || status === 504;
+  }
+
+  function defaultMessage(status) {
+    if (status === 429) {
+      return 'Gemini is busy or the API quota has been reached. Wait a moment and try again.';
+    }
+
+    if (status === 504) {
+      return 'Gemini took too long to respond. Please try again.';
+    }
+
+    if (status === 422) {
+      return 'Please fix the highlighted fields and try again.';
+    }
+
+    return 'Generation did not finish. Your notes are safe — check the details and try again.';
+  }
+
   function apiProvider(input) {
     var baseUrl = getApiBaseUrl();
     var url = baseUrl.replace(/\/$/, '') + '/api/generate';
@@ -73,26 +152,26 @@
       })
     })
       .then(function (response) {
-        if (!response.ok) {
-          if (response.status === 422) {
-            throw new GenerationError(
-              'Please fix the highlighted fields and try again.',
-              {
-                code: ERROR_CODES.INVALID_REQUEST,
-                recoverable: false
-              }
-            );
-          }
+        if (response.ok) {
+          return response.json();
+        }
+
+        return readErrorDetail(response).then(function (detail) {
+          var serverCode = detail && detail.code;
+          var code = mapErrorCode(response.status, serverCode);
+
           throw new GenerationError(
-            'Generation did not finish. Your notes are safe — check the details and try again.',
+            (detail && detail.message) || defaultMessage(response.status),
             {
-              code: ERROR_CODES.GENERATION_FAILED,
-              recoverable: true,
-              diagnostics: { status: response.status }
+              code: code,
+              recoverable: isRecoverable(response.status),
+              diagnostics: {
+                status: response.status,
+                providerCode: serverCode || undefined
+              }
             }
           );
-        }
-        return response.json();
+        });
       })
       .catch(function (error) {
         if (error instanceof GenerationError) {
@@ -108,23 +187,6 @@
           }
         );
       });
-  }
-
-  function localProvider(input) {
-    var generator = global.MindForgeGenerator;
-
-    if (!generator || typeof generator.generate !== 'function') {
-      throw new GenerationError(
-        'The local generator did not load. Refresh the page and try again.',
-        {
-          code: ERROR_CODES.PROVIDER_UNAVAILABLE,
-          recoverable: false,
-          diagnostics: { provider: 'local-mock' }
-        }
-      );
-    }
-
-    return generator.generate(input);
   }
 
   function getProvider() {

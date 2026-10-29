@@ -301,7 +301,7 @@
 
     if (notesHint) {
       notesHint.textContent =
-        'The local mock generator draws its summary and cards from these words. Up to ' +
+        'The Gemini generator draws its summary and cards from these words. Up to ' +
         formatNumber(limits.notes) +
         ' characters; nothing is truncated.';
     }
@@ -513,6 +513,10 @@
 
   function errorInfo(error) {
     var code = error && error.code ? error.code : '';
+    var message =
+      error && typeof error.message === 'string' && error.message.trim()
+        ? error.message
+        : '';
 
     if (code === 'invalid-response') {
       return {
@@ -531,10 +535,48 @@
       };
     }
 
-    if (code === 'provider-unavailable' || code === 'contract-unavailable') {
+    if (code === 'configuration-error') {
+      return {
+        title: 'Gemini is not configured.',
+        message:
+          message ||
+          'The backend is missing its Gemini settings. Ask the administrator to configure GEMINI_API_KEY and GEMINI_MODEL.',
+        recoverable: false
+      };
+    }
+
+    if (code === 'rate-limited') {
+      return {
+        title: 'Gemini is busy.',
+        message:
+          message ||
+          'The Gemini rate limit or API quota has been reached. Wait a moment and try again.',
+        recoverable: true
+      };
+    }
+
+    if (code === 'provider-timeout') {
+      return {
+        title: 'Gemini took too long.',
+        message: message || 'Generation timed out. Please try again.',
+        recoverable: true
+      };
+    }
+
+    if (code === 'provider-unavailable') {
       return {
         title: 'Generation is unavailable.',
-        message: 'Part of the local generator did not load. Refresh the page and try again.',
+        message:
+          message ||
+          'Could not reach the backend or Gemini. Check the connection and try again.',
+        recoverable: true
+      };
+    }
+
+    if (code === 'contract-unavailable') {
+      return {
+        title: 'Generation is unavailable.',
+        message: 'Part of the study contract did not load. Refresh the page and try again.',
         recoverable: false
       };
     }
@@ -542,6 +584,7 @@
     return {
       title: 'The forge cooled down.',
       message:
+        message ||
         'Something interrupted the forge. Your notes are safe — check the details and try again.',
       recoverable: Boolean(error && error.recoverable)
     };
@@ -616,12 +659,12 @@
             record.flashcards.length +
             (saved
               ? ' flashcards. Saved to History.'
-              : ' flashcards generated locally.'),
+              : ' flashcards generated.'),
           'success'
         );
 
         if (!saved) {
-          notify('Generated locally, but History could not be saved in this browser.');
+          notify('Study material generated, but History could not be saved in this browser.');
         }
 
         document.dispatchEvent(

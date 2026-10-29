@@ -2,25 +2,33 @@
 
 **Shape the way you learn.**
 
-A premium, local-first study workspace for deliberate learning. Phase 0, Part 1 delivered the dashboard foundation — visual system, navigation, theme persistence, study statistics, recent sessions and activity visualisation. Part 2 added the Study Workspace and local mock generation. Part 3 made the generated material interactive: a readable summary, a five-question scored quiz, flip flashcards, saved generations and progress derived from your own answers. Phase 1 hardens that workflow with explicit generation states, configurable input limits, runtime response validation and a single provider-ready generation interface.
+A premium study workspace for deliberate learning. Phase 0 delivered the dashboard foundation — visual system, navigation, theme persistence, study statistics, recent sessions and activity visualisation. Part 2 added the Study Workspace and local mock generation. Part 3 made the generated material interactive: a readable summary, a five-question scored quiz, flip flashcards, saved generations and progress derived from your own answers. Phase 1 hardened that workflow with explicit generation states, configurable input limits and runtime response validation. Phase 2 moved generation behind a FastAPI backend. **Phase 3.1 replaces the backend mock with real server-side Google Gemini generation**, while keeping the existing API and frontend contract.
 
-No frameworks, no backend, no AI calls. Plain HTML, CSS and vanilla JavaScript. Phase 1 is mock-only: no FastAPI service, Gemini integration, API key or network generation exists yet.
+The frontend is still plain HTML, CSS and vanilla JavaScript with no framework and no build step. The browser calls only the MindForge FastAPI backend; the API key and Gemini calls stay on the server.
 
 ## Run it
 
-You need to run both the frontend and the backend.
+You need Python 3.11+ and a Gemini API key. Run the backend and frontend separately.
 
-### Backend (FastAPI)
+### 1. Get a Gemini API key
+
+1. Open [Google AI Studio](https://aistudio.google.com/apikey) and sign in with a Google account.
+2. Click **Create API key** and choose or create a project.
+3. Copy the key. Treat it like a password: it belongs in `backend/.env`, never in source code, chat, Git or the browser.
+
+The key is read only by the backend from `GEMINI_API_KEY`. The model is configured separately with `GEMINI_MODEL`; use a currently supported model from the [Gemini model list](https://ai.google.dev/gemini-api/docs/models). The example uses `gemini-3.8-flash`, but you can change it without code changes.
+
+### 2. Backend (FastAPI + Gemini)
 
 1. Navigate to the backend directory:
 ```bash
 cd backend
 ```
 
-2. Create and activate a virtual environment (macOS):
+2. Create and activate a virtual environment (macOS/Linux):
 ```bash
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
 3. Install dependencies:
@@ -28,37 +36,109 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. (Optional) Copy and configure environment variables:
+4. Create your local environment file:
 ```bash
 cp .env.example .env
 ```
 
-5. Start the backend server:
+5. Edit `backend/.env` and set at least:
+```dotenv
+GEMINI_API_KEY=your-real-key-from-ai-studio
+GEMINI_MODEL=gemini-3.8-flash
+```
+
+   Optional settings:
+
+   | Variable | Default | Purpose |
+   | --- | --- | --- |
+   | `GEMINI_TIMEOUT_SECONDS` | `45` | Per-request timeout, bounded to 1–120 seconds. |
+   | `GEMINI_MAX_RETRIES` | `2` | Extra attempts for transient timeouts, network failures and provider 5xx errors, bounded to 0–3. Authentication failures, rate limits and validation failures are never retried. |
+   | `CORS_ORIGINS` | local origins | Comma-separated frontend origins allowed to call the API. |
+
+   `backend/.env` is ignored by Git. Never commit it or paste its contents anywhere public.
+
+6. Start the backend:
 ```bash
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The backend API will be available at <http://127.0.0.1:8000>. API docs at <http://127.0.0.1:8000/docs>. Health check at <http://127.0.0.1:8000/api/health>.
+The backend API is at <http://127.0.0.1:8000>, interactive docs at <http://127.0.0.1:8000/docs>, and the health check at <http://127.0.0.1:8000/api/health>.
 
-### Frontend
+### 3. Frontend
 
-There is no build step. Serve the folder locally from the root directory:
+Serve the repository root (not the `backend` folder) with a static server. The port must be listed in `CORS_ORIGINS`; the defaults include 5500 and 8000.
 
+Using Python:
 ```bash
-python3 -m http.server 8000
+python3 -m http.server 5500
 ```
 
-Or use a different port if 8000 is taken by the backend. If you use a different port, update the backend CORS settings and/or frontend API config.
+Or use the VS Code **Live Server** extension and open `index.html` from the repository root. Live Server normally uses port 5500.
 
-Then visit <http://localhost:8000>. A local server is recommended so clipboard, downloads and `localStorage` behave consistently.
+Visit <http://localhost:5500>. Do not open `index.html` directly with `file://` if you want API generation, History and clipboard features to behave consistently.
 
-**Note:** The frontend now sends requests to the backend API by default. Make sure the backend is running, or you can configure the API URL via `MindForgeApiConfig.setApiBaseUrl()`.
+### 4. Test generation
+
+In the Study Workspace:
+
+1. Enter a topic such as `Photosynthesis`.
+2. Paste at least a few sentences of notes.
+3. Choose an answer style and difficulty.
+4. Choose **Generate study material**.
+
+The button is disabled and a loading indicator appears while the backend calls Gemini. On success, the Summary, Quiz and Flashcards tabs render, and the session is saved to History. On failure, the UI shows a safe, actionable message and keeps your notes; Retry is offered only for recoverable failures such as timeouts or rate limits.
+
+You can also test the API directly:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/generate \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "topic": "Photosynthesis",
+    "notes": "Plants use sunlight, carbon dioxide and water to produce glucose and oxygen.",
+    "answerStyle": "exam",
+    "difficulty": "medium"
+  }'
+```
+
+A successful response has exactly five quiz questions and follows the existing contract:
+
+```json
+{
+  "summary": { "text": "...", "keyConcepts": ["..."] },
+  "quiz": [
+    {
+      "question": "...",
+      "options": ["...", "...", "...", "..."],
+      "correctAnswer": 0,
+      "explanation": "..."
+    }
+  ],
+  "flashcards": [{ "front": "...", "back": "..." }]
+}
+```
+
+### Troubleshooting
+
+| Symptom | Likely cause and fix |
+| --- | --- |
+| `503 configuration_error` mentioning `GEMINI_API_KEY` | `backend/.env` is missing the key, or the server was started before the file was created. Add the key and restart uvicorn. |
+| `503 configuration_error` mentioning `GEMINI_MODEL` | Set `GEMINI_MODEL` to a currently supported model ID, then restart uvicorn. |
+| `502 provider_auth_error` | Gemini rejected the key. Check for extra spaces or a revoked/restricted key in AI Studio, update `GEMINI_API_KEY`, and restart. |
+| `429 provider_rate_limited` | You hit a rate limit or exhausted the free-tier quota. Wait, check usage in AI Studio, or enable billing/raise the quota. The backend does not retry this automatically. |
+| `504 provider_timeout` or `502 provider_unavailable` | The network is slow or blocked. Check the server's connection, try again, or raise `GEMINI_TIMEOUT_SECONDS` carefully. |
+| `502 invalid_provider_response` | Gemini returned unreadable or schema-invalid JSON. Try again; if it repeats, check that `GEMINI_MODEL` supports JSON structured output. |
+| Browser shows a CORS error | The frontend origin is not allowed. Serve the UI from `http://localhost:5500` / `http://127.0.0.1:5500`, or add the exact origin and port to `CORS_ORIGINS`, then restart uvicorn. |
+| Browser shows `Unable to reach the backend` | FastAPI is not running on port 8000, or `js/api-config.js` points elsewhere. Start the backend and check the URL. |
+| Generation works but History does not save | Browser storage is blocked or full. The result still renders; clear storage or allow site data. |
+
+Never commit `.env`. If a key is accidentally exposed, revoke it in Google AI Studio and create a new one.
 
 ## What is included
 
 - **Premium dashboard** with a welcome panel, daily focus dial, four derived statistics, recent sessions, a seven-day activity chart and a weekly goal ring.
 - **Working study workspace** with topic and notes fields, live character counters, near-limit warnings, answer-style and quiz-difficulty choices, inline validation, duplicate-submission protection, explicit `idle`/`loading`/`success`/`error` states, stale-response guards and recoverable retry.
-- **Local study generation** that shapes your notes into a structured summary, a five-question retrieval quiz with explanations, and a flashcard deck. Generation runs entirely in the browser — there is no account, network request or AI service involved.
+- **Server-side Gemini generation** that sends the topic, notes, answer style and difficulty to FastAPI, asks Gemini for structured JSON, validates it against the study contract and returns only safe study material. The browser never receives the API key and never calls Gemini directly.
 - **Validated generation contract** that trims and checks the request before generation, rejects malformed provider responses at runtime, and migrates Phase 0 history records to the current shape when they are read.
 - **Interactive result tabs** for Summary, Quiz and Flashcards, with arrow-key, Home and End keyboard navigation.
 - **Summary actions** that copy the summary and key concepts through the Clipboard API (with a legacy copy fallback) and download the same content as a `.txt` file.
@@ -81,8 +161,8 @@ The workspace form asks for a topic and notes, plus two choices:
 | --- | --- |
 | Topic | Required after trimming. Maximum 120 characters. |
 | Notes | Required after trimming. Maximum 20,000 characters. |
-| Answer style | Explain Like I'm 10 · Exam-Focused · Detailed. Sets the summary tone and the number of key concepts (3, 4 or 5). |
-| Quiz difficulty | Easy · Medium · Hard. Every quiz has five questions. Difficulty adds estimated minutes and changes the flashcard count (4, 5 or 6). |
+| Answer style | Explain Like I'm 10 · Exam-Focused · Detailed. Sets the summary tone and the generation instructions. |
+| Quiz difficulty | Easy · Medium · Hard. Every quiz has five questions. Difficulty changes question depth and the requested flashcard count (4, 5 or 6). |
 
 Whitespace-only values are rejected. Content is never silently truncated: over-limit input stays in the field, the counter switches to an over-limit state and generation is blocked with an explicit error. From 90% of a limit, the counter warns and shows how many characters remain. Limits are configurable at runtime:
 
@@ -140,15 +220,23 @@ The generator is accessed through one frontend interface:
 MindForgeGeneration.generate({ topic, notes, answerStyle, difficulty });
 ```
 
-It validates the request, calls the current provider and validates the response. The local mock is the only provider shipped:
+It validates the request, calls `POST /api/generate` on the FastAPI backend and validates the response before it can be saved or rendered. The backend performs the Gemini call; the browser has no Gemini credentials. The previous local mock remains in the repository only as a test fixture and explicit `setProvider` option, never as an automatic fallback:
 
 ```js
-MindForgeGeneration.getProviderName(); // "local-mock"
-MindForgeGeneration.setProvider(providerFunction, 'my-provider');
+MindForgeGeneration.getProviderName(); // "api-backend"
+MindForgeGeneration.setProvider(providerFunction, 'my-provider'); // explicit test double
 MindForgeGeneration.resetProvider();
 ```
 
-A future `api.js` can be injected with `setProvider` without moving provider logic into UI components. Phase 1 does not implement that provider.
+### Gemini request flow
+
+1. `js/workspace.js` validates the form and calls `MindForgeGeneration.generate`.
+2. `js/generation.js` posts `{ topic, notes, answerStyle, difficulty }` to `POST /api/generate` and checks `response.ok`.
+3. `backend/app/main.py` validates the request with Pydantic and calls `GeminiGenerationService`.
+4. `backend/app/services/generation.py` reads `GEMINI_API_KEY` and `GEMINI_MODEL` from the server environment, builds a prompt with the notes marked as untrusted study material, and calls Gemini's Interactions API with a JSON response schema.
+5. Gemini's output is parsed as JSON and validated with `GenerateResponse`. Exactly five questions, four non-empty options each, an answer index from 0–3 and non-empty explanations/concepts/flashcards are enforced.
+6. Only validated study material is returned. Provider failures map to safe HTTP errors; raw provider details, notes and keys are never returned.
+7. The frontend re-validates the payload against the runtime contract, renders it and saves it to History.
 
 ### Validation and diagnostics
 
@@ -182,62 +270,101 @@ A future `api.js` can be injected with `setProvider` without moving provider log
 
 ```text
 MindForge/
-├── index.html            # App shell, all five views and the SVG icon sprite
+├── index.html                    # App shell, all five views and the SVG icon sprite
 ├── assets/
-│   └── favicon.svg       # Brand mark
+│   └── favicon.svg               # Brand mark
 ├── css/
-│   ├── styles.css        # Tokens, layout, components and motion
-│   └── responsive.css    # Tablet, phone and drawer behaviour
+│   ├── styles.css                # Tokens, layout, components and motion
+│   └── responsive.css            # Tablet, phone and drawer behaviour
 ├── js/
-│   ├── app.js            # Derived statistics, dashboard, History and Progress
-│   ├── generation.js     # Single validated generation interface and provider injection
-│   ├── history.js        # Saved-generation store, contract validation and progress hydration
-│   ├── learning.js       # Result tabs, quiz, flashcards, copy and download
-│   ├── mock-data.js      # Deterministic mock fixtures
-│   ├── mock-generator.js # Local study-material provider (no network)
-│   ├── navigation.js     # Hash routing, focus management, mobile drawer
-│   ├── storage.js        # Defensive localStorage wrapper
-│   ├── study-contract.js # Configurable limits, request/response validation, migration
-│   ├── theme.js          # Theme persistence and cross-tab sync
-│   └── workspace.js      # Form validation, state machine, generation and reopening
+│   ├── api-config.js             # Backend base URL (browser never sees Gemini keys)
+│   ├── app.js                    # Derived statistics, dashboard, History and Progress
+│   ├── generation.js             # Validated frontend interface to POST /api/generate
+│   ├── history.js                # Saved-generation store, contract validation and progress hydration
+│   ├── learning.js               # Result tabs, quiz, flashcards, copy and download
+│   ├── mock-data.js              # Deterministic dashboard fixtures
+│   ├── mock-generator.js         # Test-only local provider, never an automatic fallback
+│   ├── navigation.js             # Hash routing, focus management, mobile drawer
+│   ├── storage.js                # Defensive localStorage wrapper
+│   ├── study-contract.js         # Configurable limits, request/response validation, migration
+│   ├── theme.js                  # Theme persistence and cross-tab sync
+│   └── workspace.js              # Form validation, state machine, generation and reopening
+├── backend/
+│   ├── app/
+│   │   ├── config.py             # Environment and Gemini settings
+│   │   ├── main.py               # FastAPI app, CORS, error mapping, /api endpoints
+│   │   ├── schemas.py            # Pydantic request/response contract
+│   │   └── services/
+│   │       └── generation.py     # Gemini client, prompt, retries and validation
+│   ├── tests/                    # Backend API and Gemini service tests (SDK mocked)
+│   ├── .env.example              # Placeholders only; copy to .env
+│   └── requirements.txt
 ├── tests/
-│   └── contract.test.mjs # Contract, generation and migration tests
+│   └── contract.test.mjs         # Frontend contract, generation and migration tests
 ├── .gitignore
 └── README.md
 ```
 
 ## Tests
 
-The contract, mock generator, generation service and legacy migration are covered by Node's built-in test runner (Node 18+). No dependencies are required:
+### Backend
+
+```bash
+cd backend
+source .venv/bin/activate
+python -m pytest -q
+```
+
+The backend suite mocks the Gemini SDK. It does not need a real API key, does not consume quota and makes no network requests. It covers:
+
+- Valid Gemini output returned through `POST /api/generate`.
+- Request parameters sent to Gemini, including the model, topic, notes, answer style, difficulty, system instruction and JSON schema.
+- Exactly five validated quiz questions and schema violations.
+- Invalid JSON, non-object JSON and empty provider responses.
+- Missing API key, missing/invalid model configuration.
+- Provider authentication errors, rate limits/quota, timeouts, network failures and provider 5xx responses.
+- Bounded retries for transient failures and no retries for authentication, rate limits or validation failures.
+- Safe HTTP responses that do not leak keys, notes, provider messages or stack traces.
+- Preservation of the existing response schema.
+
+### Frontend
+
+The contract, frontend generation service, mock fixture and legacy migration are covered by Node's built-in test runner (Node 18+). No dependencies are required:
 
 ```bash
 node --test tests/contract.test.mjs
 ```
 
-The suite covers valid and trimmed requests, whitespace-only input, configured over-limit input, invalid answer style/difficulty, the mock response contract, every response-validation rule (missing fields, wrong quiz count, wrong option count, empty strings, out-of-range/fractional/string answer indexes), provider failure diagnostics, and legacy Phase 0 migration.
+The suite covers valid and trimmed requests, whitespace-only input, configured over-limit input, invalid answer style/difficulty, the response contract, every response-validation rule, provider failure diagnostics and legacy Phase 0 migration.
 
-### Phase 1 manual checklist
+### Real provider smoke test
 
-1. Submit empty or whitespace-only fields: inline errors appear, focus moves to the first field, and no provider call is made.
+The automated tests are mocked. To verify real Gemini generation, configure a valid `GEMINI_API_KEY` and `GEMINI_MODEL` in `backend/.env`, start the backend, and run the `curl` request under [Test generation](#4-test-generation), or generate from the UI. Only that manual/real check exercises the live provider.
+
+### Manual checklist
+
+1. Submit empty or whitespace-only fields: inline errors appear, focus moves to the first field, and no request is made.
 2. Paste a topic over 120 characters or notes over 20,000 characters: the counter shows the true length, an over-limit warning appears and generation is blocked. Content is preserved, not truncated.
 3. Type past 90% of a limit: the counter and a "characters left" warning appear.
 4. Clear both radio groups with the console and submit: answer-style and difficulty errors appear and generation is blocked.
 5. Generate valid material: the form enters `loading`, Generate is disabled, a duplicate submit is ignored, and one result renders and saves.
-6. Simulate a provider failure (`MindForgeGeneration.setProvider(() => Promise.reject(new Error('fail')))`): the form enters `error`, inputs remain, the alert is focused and Retry succeeds after the provider is restored.
-7. Simulate a malformed response (`setProvider(() => Promise.resolve({ summary: { text: 'x', keyConcepts: ['y'] }, quiz: [], flashcards: [] }))`): the form enters `error`, no result is saved, and diagnostics list the failing paths.
-8. Start a slow generation, then reopen a History record: the slow response must not replace the reopened record.
-9. Reopen a saved generation: quiz answers and card mastery are restored. Check History, Progress, the dashboard and the theme toggle still behave as before.
-10. Check the workspace, result tabs and History at 375px width: no horizontal overflow.
-11. Confirm DevTools shows no external network requests, console errors or exceptions.
+6. Stop the backend and generate: the alert says the backend cannot be reached, the inputs remain, and no mock content appears.
+7. Temporarily remove `GEMINI_API_KEY` from `backend/.env` and restart: generation returns a clear configuration error (503), not mock content.
+8. Use an invalid key: the UI shows a safe authentication error and never displays the key.
+9. Start a slow generation, then reopen a History record: the slow response must not replace the reopened record.
+10. Reopen a saved generation: quiz answers and card mastery are restored. Check History, Progress, the dashboard and the theme toggle still behave as before.
+11. Check the workspace, result tabs and History at 375px width: no horizontal overflow.
+12. Confirm DevTools shows requests only to the MindForge backend, never to Google Gemini, and that no key appears in the browser or console.
 
 ## Scope for this part
 
-Phase 1 hardens the Phase 0 workflow: generate, validate, read the summary, take a five-question quiz, review flashcards, reopen the session from History and see the saved results in Progress. AI remains mocked; there is no Gemini integration, backend, account or network request. The project intentionally stops here — FastAPI and Gemini are not implemented.
+Phase 3.1 replaces the backend mock with server-side Gemini generation while preserving the existing `POST /api/generate` request/response contract, frontend UI and local History/Progress features. It adds secure environment configuration, prompt-injection guidance, structured output, Pydantic validation, bounded retries, safe HTTP error mapping, mocked automated tests and this documentation. Work stops here; no additional phases are included.
 
 ## Notes
 
-- Dates in the mock fixtures are generated relative to the current day so recency labels remain believable.
-- The generator returns a Promise after a short delay to exercise real loading states, but performs no network request.
-- Dashboard statistics merge the mock fixtures with saved generations. Quiz averages include only saved sessions with at least one answered question.
-- The site works from `file://`, but a local server is recommended for consistent history, clipboard and hash behaviour.
+- Dates in the mock dashboard fixtures are generated relative to the current day so recency labels remain believable.
+- The test-only mock generator returns a Promise after a short delay, but production generation always goes through the FastAPI backend.
+- Dashboard statistics merge the dashboard fixtures with saved generations. Quiz averages include only saved sessions with at least one answered question.
+- A local static server is required for consistent API calls, history, clipboard and hash behaviour. Opening `index.html` via `file://` will not reach the backend in most browsers.
 - Tested in current Chrome, with responsive checks from 1440px down to 360px.
+
