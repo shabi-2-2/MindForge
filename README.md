@@ -16,7 +16,7 @@ You need Python 3.11+ and a Gemini API key. Run the backend and frontend separat
 2. Click **Create API key** and choose or create a project.
 3. Copy the key. Treat it like a password: it belongs in `backend/.env`, never in source code, chat, Git or the browser.
 
-The key is read only by the backend from `GEMINI_API_KEY`. The model is configured separately with `GEMINI_MODEL`; use a currently supported model from the [Gemini model list](https://ai.google.dev/gemini-api/docs/models). The example uses `gemini-3.8-flash`, but you can change it without code changes.
+The key is read only by the backend from `GEMINI_API_KEY`. The model is configured separately with `GEMINI_MODEL`; use a currently supported model from the [Gemini model list](https://ai.google.dev/gemini-api/docs/models). The example uses `gemini-3.6-flash`, but you can change it without code changes.
 
 ### 2. Backend (FastAPI + Gemini)
 
@@ -44,7 +44,7 @@ cp .env.example .env
 5. Edit `backend/.env` and set at least:
 ```dotenv
 GEMINI_API_KEY=your-real-key-from-ai-studio
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-3.6-flash
 ```
 
    Optional settings:
@@ -54,6 +54,7 @@ GEMINI_MODEL=gemini-3.8-flash
    | `GEMINI_TIMEOUT_SECONDS` | `45` | Per-request timeout, bounded to 1–120 seconds. |
    | `GEMINI_MAX_RETRIES` | `2` | Extra attempts for transient timeouts, network failures and provider 5xx errors, bounded to 0–3. Authentication failures, rate limits and validation failures are never retried. |
    | `CORS_ORIGINS` | local origins | Comma-separated frontend origins allowed to call the API. |
+   | `CORS_ORIGIN_REGEX` | loopback pattern | Optional pattern that allows `localhost`, `127.0.0.1` and `[::1]` on any port. Set it to an empty value to disable it. |
 
    `backend/.env` is ignored by Git. Never commit it or paste its contents anywhere public.
 
@@ -66,14 +67,14 @@ The backend API is at <http://127.0.0.1:8000>, interactive docs at <http://127.0
 
 ### 3. Frontend
 
-Serve the repository root (not the `backend` folder) with a static server. The port must be listed in `CORS_ORIGINS`; the defaults include 5500 and 8000.
+Serve the repository root (not the `backend` folder) with a static server. Loopback origins on any port are allowed by default, so Live Server works whether it uses 5500 or the next free port. Non-loopback origins must be added explicitly to `CORS_ORIGINS`.
 
 Using Python:
 ```bash
 python3 -m http.server 5500
 ```
 
-Or use the VS Code **Live Server** extension and open `index.html` from the repository root. Live Server normally uses port 5500.
+Or use the VS Code **Live Server** extension and open `index.html` from the repository root. Live Server normally uses port 5500, but it increments to 5501, 5502, and so on when that port is busy; the default loopback CORS pattern covers those ports.
 
 Visit <http://localhost:5500>. Do not open `index.html` directly with `file://` if you want API generation, History and clipboard features to behave consistently.
 
@@ -128,8 +129,9 @@ A successful response has exactly five quiz questions and follows the existing c
 | `429 provider_rate_limited` | You hit a rate limit or exhausted the free-tier quota. Wait, check usage in AI Studio, or enable billing/raise the quota. The backend does not retry this automatically. |
 | `504 provider_timeout` or `502 provider_unavailable` | The network is slow or blocked. Check the server's connection, try again, or raise `GEMINI_TIMEOUT_SECONDS` carefully. |
 | `502 invalid_provider_response` | Gemini returned unreadable or schema-invalid JSON. Try again; if it repeats, check that `GEMINI_MODEL` supports JSON structured output. |
-| Browser shows a CORS error | The frontend origin is not allowed. Serve the UI from `http://localhost:5500` / `http://127.0.0.1:5500`, or add the exact origin and port to `CORS_ORIGINS`, then restart uvicorn. |
-| Browser shows `Unable to reach the backend` | FastAPI is not running on port 8000, or `js/api-config.js` points elsewhere. Start the backend and check the URL. |
+| Browser shows `OPTIONS /api/generate 400` or a CORS error | The frontend origin is not allowed. Loopback origins (`localhost`, `127.0.0.1`, `[::1]`) on any port are allowed by default. If you use a different host or a `file://` page, serve the UI from a loopback origin or add the exact origin to `CORS_ORIGINS`, then restart uvicorn. Review `CORS_ORIGINS` / `CORS_ORIGIN_REGEX` in `backend/app/config.py`. |
+| Browser shows `Unable to reach the backend` | FastAPI is not running on port 8000, or `js/api-config.js` points elsewhere. Start the backend and check that requests go to `http://127.0.0.1:8000/api/generate`. |
+| `GET /health` returns 404 | Expected: only `GET /api/health` is defined. Use `http://127.0.0.1:8000/api/health`. |
 | Generation works but History does not save | Browser storage is blocked or full. The result still renders; clear storage or allow site data. |
 
 Never commit `.env`. If a key is accidentally exposed, revoke it in Google AI Studio and create a new one.

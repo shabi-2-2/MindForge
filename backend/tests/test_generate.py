@@ -242,13 +242,64 @@ def test_generate_notes_too_long(api_client):
     assert response.status_code == 422
 
 
-def test_cors_headers():
-    with TestClient(app) as client:
-        response = client.options(
-            "/api/generate",
-            headers={
-                "Origin": "http://localhost:8000",
-                "Access-Control-Request-Method": "POST",
-            },
-        )
-    assert response.status_code in [200, 204]
+def preflight(client, origin, method="POST", headers="content-type"):
+    return client.options(
+        "/api/generate",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": method,
+            "Access-Control-Request-Headers": headers,
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+        # Live Server increments the port when 5500 is already in use.
+        "http://localhost:5501",
+        "http://127.0.0.1:5501",
+        "http://localhost:5512",
+        "http://127.0.0.1:5512",
+        "http://localhost:8000",
+    ],
+)
+def test_cors_preflight_allows_local_frontend_origins(api_client, origin):
+    response = preflight(api_client, origin)
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+    assert "POST" in response.headers["access-control-allow-methods"]
+    assert "content-type" in response.headers["access-control-allow-headers"].lower()
+
+
+def test_cors_preflight_rejects_untrusted_origin(api_client):
+    response = preflight(api_client, "https://evil.example")
+
+    assert response.status_code == 400
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_cors_actual_post_includes_allow_origin(api_client, make_service, valid_payload):
+    service, _ = make_service([json.dumps(valid_payload)])
+    override_service(service)
+
+    response = api_client.post(
+        "/api/generate",
+        json=REQUEST,
+        headers={"Origin": "http://127.0.0.1:5501"},
+    )
+
+    assert response.status_code == 200
+    assert (
+        response.headers["access-control-allow-origin"]
+        == "http://127.0.0.1:5501"
+    )
+
+
+def test_health_stays_at_api_prefix(api_client):
+    assert api_client.get("/api/health").status_code == 200
+    # Only /api/health is defined; a bare /health 404 is expected.
+    assert api_client.get("/health").status_code == 404

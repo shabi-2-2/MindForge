@@ -21,6 +21,14 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Log enough to diagnose local setup without ever printing secret values.
+    logger.info(
+        "CORS allowed origins: %s",
+        ", ".join(settings.cors_origins) or "(none)",
+    )
+    if settings.cors_origin_regex:
+        logger.info("CORS allowed origin pattern: %s", settings.cors_origin_regex)
+
     if not settings.gemini_api_key:
         logger.error(
             "GEMINI_API_KEY is not configured. /api/generate will return a "
@@ -31,6 +39,11 @@ async def lifespan(app: FastAPI):
             "GEMINI_MODEL is not configured. /api/generate will return a "
             "configuration error until backend/.env is set."
         )
+    logger.info(
+        "Gemini configuration present: key=%s model=%s",
+        "yes" if settings.gemini_api_key else "no",
+        "yes" if settings.gemini_model else "no",
+    )
 
     yield
 
@@ -45,10 +58,13 @@ app = FastAPI(
 )
 
 
-# Configure CORS
+# Configure CORS. The explicit origin list is complemented by a
+# loopback-only regex so Live Server ports (5500, 5501, ...) work without a
+# wildcard. Credentials are disabled because the browser sends no cookies.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    allow_origin_regex=settings.cors_origin_regex,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],

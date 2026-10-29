@@ -30,7 +30,7 @@ function loadRuntime() {
   context.globalThis = context;
   vm.createContext(context);
 
-  ['js/study-contract.js', 'js/mock-generator.js', 'js/generation.js'].forEach(
+  ['js/study-contract.js', 'js/mock-generator.js', 'js/api-config.js', 'js/generation.js'].forEach(
     (file) => {
       vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, {
         filename: file
@@ -206,6 +206,44 @@ test('the generation service validates requests and returns contract data', asyn
       }
     );
   } finally {
+    generation.resetProvider();
+  }
+});
+
+test('the default provider posts to the backend generate URL', async () => {
+  const calls = [];
+  const payload = await makeResult();
+
+  runtime.fetch = (url, options) => {
+    calls.push({ url, options });
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(payload)
+    });
+  };
+  generation.resetProvider();
+
+  try {
+    const result = await generation.generate(validInput);
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'http://127.0.0.1:8000/api/generate');
+    assert.equal(calls[0].options.method, 'POST');
+    assert.equal(calls[0].options.headers['Content-Type'], 'application/json');
+
+    const body = JSON.parse(calls[0].options.body);
+    assert.deepEqual(Object.keys(body).sort(), [
+      'answerStyle',
+      'difficulty',
+      'notes',
+      'topic'
+    ]);
+    assert.equal(body.topic, 'The adaptive immune system');
+    assert.equal(body.answerStyle, 'exam');
+    assert.equal(body.difficulty, 'medium');
+    assert.equal(contract.validateResponse(result).ok, true);
+  } finally {
+    delete runtime.fetch;
     generation.resetProvider();
   }
 });
