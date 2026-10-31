@@ -8,8 +8,9 @@
 
   var data = global.MindForgeData;
   var history = global.MindForgeHistory;
+  var analytics = global.MindForgeAnalytics;
 
-  if (!data) {
+  if (!data || !analytics) {
     return;
   }
 
@@ -117,112 +118,40 @@
     return history ? history.all() : [];
   }
 
+  var filterState = {
+    query: '',
+    difficulty: 'all',
+    answerStyle: 'all',
+    status: 'all'
+  };
+
   function recordTitle(record) {
-    if (
-      record.summary &&
-      typeof record.summary.title === 'string' &&
-      record.summary.title
-    ) {
-      return record.summary.title;
-    }
-
-    if (typeof record.topic === 'string' && record.topic) {
-      return record.topic;
-    }
-
-    var text = record.summary ? record.summary.text : '';
-
-    if (typeof text === 'string' && text) {
-      return text.slice(0, 60) + (text.length > 60 ? '…' : '');
-    }
-
-    return 'Study session';
+    return analytics.recordTitle(record);
   }
 
   function recordConfig(record) {
-    var config = record.config || {};
-
-    return {
-      answerStyleLabel:
-        typeof config.answerStyleLabel === 'string' && config.answerStyleLabel
-          ? config.answerStyleLabel
-          : 'Study material',
-      difficultyLabel:
-        typeof config.difficultyLabel === 'string' && config.difficultyLabel
-          ? config.difficultyLabel
-          : 'Medium'
-    };
+    return analytics.configFor(record);
   }
 
   function recordMinutes(record) {
-    return record.summary &&
-      typeof record.summary.estimatedMinutes === 'number' &&
-      record.summary.estimatedMinutes > 0
-      ? Math.round(record.summary.estimatedMinutes)
-      : 0;
+    return analytics.minutesForRecord(record);
   }
 
   function scoreForRecord(record) {
-    var questions = record.quiz;
-    var answers =
-      record.progress && record.progress.quiz && record.progress.quiz.answers
-        ? record.progress.quiz.answers
-        : {};
-    var answered = 0;
-    var correct = 0;
-
-    questions.forEach(function (question) {
-      if (!Object.prototype.hasOwnProperty.call(answers, question.id)) {
-        return;
-      }
-
-      answered += 1;
-
-      if (answers[question.id] === question.correctAnswer) {
-        correct += 1;
-      }
-    });
-
-    return {
-      answered: answered,
-      correct: correct,
-      total: questions.length,
-      percent: questions.length ? Math.round((correct / questions.length) * 100) : 0,
-      complete: answered === questions.length
-    };
+    return analytics.scoreRecord(record);
   }
 
   function masteryForRecord(record) {
-    var known =
-      record.progress && record.progress.flashcards && record.progress.flashcards.known
-        ? record.progress.flashcards.known
-        : [];
-    var valid = Object.create(null);
+    return analytics.masteryForRecord(record);
+  }
 
-    record.flashcards.forEach(function (card) {
-      valid[card.id] = true;
-    });
-
-    return {
-      known: known.filter(function (id) {
-        return valid[id];
-      }).length,
-      total: record.flashcards.length
-    };
+  function topicForRecord(record) {
+    return analytics.topicOf(record);
   }
 
   function daysAgoFromDate(value) {
-    var date = new Date(value);
-
-    if (isNaN(date.getTime())) {
-      return 0;
-    }
-
-    var today = new Date();
-    today.setHours(0, 0, 0, 0);
-    date.setHours(0, 0, 0, 0);
-
-    return Math.max(0, Math.round((today.getTime() - date.getTime()) / DAY_MS));
+    var day = analytics.daysAgoFromDate(value, Date.now());
+    return day === null ? 0 : day;
   }
 
   function recordToSession(record) {
@@ -232,124 +161,30 @@
     return {
       id: record.id,
       title: recordTitle(record),
-      subject: 'Local session',
-      type: 'Quiz',
+      subject: topicForRecord(record),
+      type: score.started ? 'Quiz' : 'Flashcards',
       daysAgo: daysAgoFromDate(record.createdAt),
       date: record.createdAt,
       duration: recordMinutes(record),
       cardsGained: mastery.known,
-      score: score.answered ? score.percent : null,
+      score: score.started ? score.percent : null,
       savedRecord: record
     };
   }
 
-  function mergedSessions(records) {
-    return data.sessions.concat(records.map(recordToSession));
+  function computeStats(records) {
+    return analytics.computeStats(records, { now: Date.now() });
   }
 
-  function activityWithSaved(records) {
-    var byDay = Object.create(null);
-
-    data.activity.forEach(function (day) {
-      byDay[day.daysAgo] = day.minutes;
-    });
-
-    records.forEach(function (record) {
-      var day = daysAgoFromDate(record.createdAt);
-
-      if (day > 13) {
-        return;
-      }
-
-      byDay[day] = (byDay[day] || 0) + recordMinutes(record);
-    });
-
-    return Object.keys(byDay).map(function (day) {
-      return {
-        daysAgo: Number(day),
-        minutes: byDay[day]
-      };
-    });
-  }
-
-  function computeStats(records, activity) {
-    var sessions = mergedSessions(records);
-    var quizzes = sessions.filter(function (session) {
-      return typeof session.score === 'number';
-    });
-    var scores = quizzes.map(function (quiz) {
-      return quiz.score;
-    });
-    var weekSessions = sessions.filter(function (session) {
-      return session.daysAgo <= 6;
-    });
-    var weekActivity = activity.filter(function (day) {
-      return day.daysAgo <= 6;
-    });
-    var previousActivity = activity.filter(function (day) {
-      return day.daysAgo >= 7 && day.daysAgo <= 13;
-    });
-    var minutesThisWeek = sum(
-      weekActivity.map(function (day) {
-        return day.minutes;
-      })
-    );
-    var previousMinutes = sum(
-      previousActivity.map(function (day) {
-        return day.minutes;
-      })
-    );
-    var mastered = sum(
-      data.decks.map(function (deck) {
-        return deck.mastered;
-      })
-    );
-    var totalCards = sum(
-      data.decks.map(function (deck) {
-        return deck.total;
-      })
-    );
-
-    records.forEach(function (record) {
-      var mastery = masteryForRecord(record);
-      mastered += mastery.known;
-      totalCards += mastery.total;
-    });
-
-    return {
-      totalSessions: sessions.length,
-      totalMinutes: sum(
-        sessions.map(function (session) {
-          return session.duration;
-        })
-      ),
-      quizzesCompleted: quizzes.length,
-      averageScore: scores.length ? Math.round(sum(scores) / scores.length) : 0,
-      topScore: scores.length ? Math.max.apply(null, scores) : 0,
-      quizSubjects: new Set(
-        quizzes.map(function (quiz) {
-          return quiz.subject;
-        })
-      ).size,
-      masteredCards: mastered,
-      totalCards: totalCards,
-      cardProgress: totalCards ? Math.round((mastered / totalCards) * 100) : 0,
-      weekSessions: weekSessions.length,
-      minutesThisWeek: minutesThisWeek,
-      previousMinutes: previousMinutes,
-      activityTrend: previousMinutes
-        ? Math.round(((minutesThisWeek - previousMinutes) / previousMinutes) * 100)
-        : 0,
-      dailyAverage: weekActivity.length ? Math.round(minutesThisWeek / 7) : 0,
-      streak: data.user.streak
-    };
+  function filteredRecords(records) {
+    return analytics.filterRecords(records, filterState);
   }
 
   function renderStats(stats) {
     var values = {
       sessions: stats.totalSessions,
       quizzes: stats.quizzesCompleted,
-      score: stats.averageScore,
+      score: stats.averageScore === null ? '—' : stats.averageScore,
       cards: stats.masteredCards
     };
 
@@ -362,22 +197,40 @@
 
     var sessionsNote = $('[data-stat-note="sessions"]');
     if (sessionsNote) {
-      sessionsNote.textContent = stats.weekSessions + ' in the last 7 days';
+      sessionsNote.textContent = stats.totalSessions
+        ? stats.weekSessions + ' in the last 7 days'
+        : 'No sessions saved yet';
     }
 
     var quizNote = $('[data-stat-note="quizzes"]');
     if (quizNote) {
-      quizNote.textContent = 'Across ' + stats.quizSubjects + ' subjects';
+      quizNote.textContent = stats.quizAttempts
+        ? stats.quizzesCompleted +
+          ' completed · ' +
+          stats.quizAttempts +
+          ' started'
+        : 'No quiz attempts yet';
     }
 
     var scoreNote = $('[data-stat-note="score"]');
     if (scoreNote) {
-      scoreNote.textContent = 'Best score ' + stats.topScore + '%';
+      scoreNote.textContent = stats.quizAttempts
+        ? stats.quizzesCompleted
+          ? 'Best score ' + stats.topScore + '%'
+          : 'Best started score ' + stats.topScore + '%'
+        : 'No quiz attempts yet';
     }
 
     var cardsNote = $('[data-stat-note="cards"]');
     if (cardsNote) {
-      cardsNote.textContent = stats.cardProgress + '% of ' + stats.totalCards + ' cards';
+      cardsNote.textContent = stats.totalCards
+        ? stats.masteredCards +
+          ' of ' +
+          stats.totalCards +
+          ' cards known · ' +
+          stats.reviewedCards +
+          ' reviewed'
+        : 'No flashcards yet';
     }
 
     var meter = $('[data-stat-meter="cards"]');
@@ -385,7 +238,7 @@
       meter.style.width = clamp(stats.cardProgress, 0, 100) + '%';
       meter.parentElement.setAttribute(
         'aria-label',
-        stats.masteredCards + ' of ' + stats.totalCards + ' flashcards mastered'
+        stats.masteredCards + ' of ' + stats.totalCards + ' flashcards known'
       );
     }
   }
@@ -393,17 +246,40 @@
   function renderWelcome(stats) {
     var firstName = data.user.firstName;
     var heroName = $('[data-user-first-name]');
-    var messages = {
-      default:
+    var goal = data.weeklyGoal.sessions;
+    var message;
+
+    if (!stats.totalSessions) {
+      message =
+        'Your archive is empty. Generate your first study session and the dashboard will turn it into an honest record of your learning.';
+    } else if (!stats.weekSessions) {
+      message =
+        'You have ' +
+        stats.totalSessions +
+        ' saved ' +
+        (stats.totalSessions === 1 ? 'session' : 'sessions') +
+        ' so far. Nothing yet this week — a short focus block is enough to begin again.';
+    } else if (stats.weekSessions >= goal) {
+      message =
         'This week you have shaped ' +
         formatMinutes(stats.minutesThisWeek) +
         ' of focus across ' +
         stats.weekSessions +
-        ' sessions. ' +
-        (stats.weekSessions >= data.weeklyGoal.sessions
-          ? 'Your weekly goal is complete — keep the momentum steady.'
-          : 'One more focused session will complete your weekly goal.')
-    };
+        ' sessions. Your weekly goal is complete — keep the momentum steady.';
+    } else {
+      var remaining = goal - stats.weekSessions;
+      message =
+        'This week you have shaped ' +
+        formatMinutes(stats.minutesThisWeek) +
+        ' of focus across ' +
+        stats.weekSessions +
+        ' ' +
+        (stats.weekSessions === 1 ? 'session' : 'sessions') +
+        '. ' +
+        (remaining === 1
+          ? 'One more focused session completes your weekly goal.'
+          : remaining + ' more focused sessions complete your weekly goal.');
+    }
 
     if (heroName) {
       heroName.textContent = firstName;
@@ -425,6 +301,12 @@
       element.textContent = stats.streak;
     });
 
+    $all('[data-streak-note]').forEach(function (element) {
+      element.textContent = stats.streak
+        ? 'Consecutive study days'
+        : 'Study today to begin';
+    });
+
     var welcomeDate = $('[data-welcome-date]');
     if (welcomeDate) {
       welcomeDate.textContent = dateFormatter.format(new Date());
@@ -437,7 +319,7 @@
 
     var welcomeMessage = $('[data-welcome-message]');
     if (welcomeMessage) {
-      welcomeMessage.textContent = messages.default;
+      welcomeMessage.textContent = message;
     }
   }
 
@@ -510,15 +392,25 @@
     }
 
     if (trendLabel) {
-      trendLabel.textContent =
-        (stats.activityTrend > 0 ? '+' : '') + stats.activityTrend + '%';
-      trendLabel.classList.toggle('trend--up', stats.activityTrend > 0);
-      trendLabel.classList.toggle('trend--down', stats.activityTrend < 0);
+      if (!stats.previousMinutes) {
+        trendLabel.textContent = stats.minutesThisWeek ? 'New' : '—';
+        trendLabel.classList.toggle('trend--up', stats.minutesThisWeek > 0);
+        trendLabel.classList.toggle('trend--down', false);
+      } else {
+        trendLabel.textContent =
+          (stats.activityTrend > 0 ? '+' : '') + stats.activityTrend + '%';
+        trendLabel.classList.toggle('trend--up', stats.activityTrend > 0);
+        trendLabel.classList.toggle('trend--down', stats.activityTrend < 0);
+      }
     }
 
     if (peakLabel) {
-      peakLabel.textContent =
-        weekdayFormatter.format(dateFromDaysAgo(peak.daysAgo)) + ' · ' + peak.minutes + ' min';
+      peakLabel.textContent = peak.minutes
+        ? weekdayFormatter.format(dateFromDaysAgo(peak.daysAgo)) +
+          ' · ' +
+          peak.minutes +
+          ' min'
+        : '—';
     }
 
     if (averageLabel) {
@@ -800,7 +692,7 @@
     var outcome = document.createElement('span');
     outcome.className = 'result-pill';
 
-    if (score.answered) {
+    if (score.started) {
       outcome.classList.add('result-pill--score');
       outcome.textContent = score.percent + '%';
       var scoreLabel = document.createElement('span');
@@ -853,46 +745,92 @@
     return item;
   }
 
-  function renderSessionLists(records) {
-    var sessions = mergedSessions(records);
-    var sorted = sessions.slice().sort(function (a, b) {
-      return new Date(b.date) - new Date(a.date);
-    });
-    var recentList = $('[data-recent-sessions]');
-    var historyList = $('[data-history-sessions]');
-    var recent = sorted.slice(0, 5);
-
-    if (recentList) {
-      recentList.innerHTML = '';
-      recent.forEach(function (session) {
-        recentList.appendChild(createSessionRow(session));
-      });
-    }
-
-    if (historyList) {
-      historyList.innerHTML = '';
-      data.sessions
-        .slice()
-        .sort(function (a, b) {
-          return new Date(b.date) - new Date(a.date);
-        })
-        .forEach(function (session) {
-          historyList.appendChild(createSessionRow(session));
-        });
-    }
+  function emptyListItem(message) {
+    var item = document.createElement('li');
+    item.className = 'session-row session-row--empty';
+    item.textContent = message;
+    return item;
   }
 
-  function renderSavedGenerations(records) {
+  function renderRecentSessions(records) {
+    var recentList = $('[data-recent-sessions]');
+    var recent = records.slice(0, 5);
+
+    if (!recentList) {
+      return;
+    }
+
+    recentList.innerHTML = '';
+
+    if (!recent.length) {
+      recentList.appendChild(
+        emptyListItem(
+          'No study sessions yet. Generate one in the Study Workspace and it will appear here.'
+        )
+      );
+      return;
+    }
+
+    recent.forEach(function (record) {
+      recentList.appendChild(createSessionRow(recordToSession(record)));
+    });
+  }
+
+  function renderHistoryArchive(records, filtered) {
+    var historyList = $('[data-history-sessions]');
+    var entries = $('[data-history-entries]');
+
+    if (entries) {
+      entries.textContent = records.length
+        ? filtered.length === records.length
+          ? records.length + ' entries'
+          : filtered.length + ' of ' + records.length + ' entries'
+        : '0 entries';
+    }
+
+    if (!historyList) {
+      return;
+    }
+
+    historyList.innerHTML = '';
+
+    if (!records.length) {
+      historyList.appendChild(emptyListItem('Your saved study sessions will appear here.'));
+      return;
+    }
+
+    if (!filtered.length) {
+      historyList.appendChild(emptyListItem('No sessions match the current search or filters.'));
+      return;
+    }
+
+    filtered.forEach(function (record) {
+      historyList.appendChild(createSessionRow(recordToSession(record)));
+    });
+  }
+
+  function renderSavedGenerations(records, filtered) {
     var list = $('[data-saved-generations]');
     var empty = $('[data-saved-empty]');
+    var noResults = $('[data-saved-no-results]');
     var count = $('[data-saved-count]');
+    var total = records.length;
+    var visible = filtered.length;
 
     if (count) {
-      count.textContent = records.length + ' saved';
+      count.textContent = total
+        ? visible === total
+          ? total + ' saved'
+          : visible + ' of ' + total + ' saved'
+        : '0 saved';
     }
 
     if (empty) {
-      empty.hidden = records.length > 0;
+      empty.hidden = total > 0;
+    }
+
+    if (noResults) {
+      noResults.hidden = !(total > 0 && visible === 0);
     }
 
     if (!list) {
@@ -900,7 +838,7 @@
     }
 
     list.innerHTML = '';
-    records.forEach(function (record) {
+    filtered.forEach(function (record) {
       list.appendChild(createSavedRow(record));
     });
   }
@@ -921,14 +859,22 @@
     meta.textContent =
       relativeDay(daysAgoFromDate(record.createdAt)) +
       ' · ' +
-      (score.answered ? score.percent + '% quiz' : 'Quiz not started');
+      (score.started
+        ? score.percent + '% quiz · ' + score.correct + ' of ' + score.total + ' correct'
+        : 'Quiz not started');
 
     main.appendChild(title);
     main.appendChild(meta);
 
     var cards = document.createElement('span');
     cards.className = 'progress-saved-row__cards';
-    cards.textContent = mastery.known + ' of ' + mastery.total + ' cards known';
+    cards.textContent =
+      mastery.known +
+      ' of ' +
+      mastery.total +
+      ' known · ' +
+      mastery.reviewed +
+      ' reviewed';
 
     item.appendChild(main);
     item.appendChild(cards);
@@ -936,34 +882,8 @@
     return item;
   }
 
-  function renderProgress(records) {
+  function renderProgress(records, stats) {
     var count = records.length;
-    var answeredQuizzes = 0;
-    var scoreTotal = 0;
-    var answeredQuestions = 0;
-    var knownCards = 0;
-    var totalCards = 0;
-    var topics = Object.create(null);
-    var quizAverage = null;
-
-    records.forEach(function (record) {
-      var score = scoreForRecord(record);
-      var mastery = masteryForRecord(record);
-
-      answeredQuestions += score.answered;
-      knownCards += mastery.known;
-      totalCards += mastery.total;
-      topics[recordTitle(record)] = true;
-
-      if (score.answered) {
-        answeredQuizzes += 1;
-        scoreTotal += score.percent;
-      }
-    });
-
-    if (answeredQuizzes) {
-      quizAverage = Math.round(scoreTotal / answeredQuizzes);
-    }
 
     var status = $('[data-progress-status]');
     if (status) {
@@ -977,15 +897,19 @@
           count +
           (count === 1 ? ' generation' : ' generations') +
           '. Those decisions have produced ' +
-          answeredQuestions +
+          stats.answeredQuestions +
           ' answered quiz ' +
-          (answeredQuestions === 1 ? 'question' : 'questions') +
-          ' and ' +
-          knownCards +
+          (stats.answeredQuestions === 1 ? 'question' : 'questions') +
+          ', ' +
+          stats.masteredCards +
           ' known ' +
-          (knownCards === 1 ? 'card' : 'cards') +
+          (stats.masteredCards === 1 ? 'card' : 'cards') +
+          ' and ' +
+          stats.reviewedCards +
+          ' reviewed ' +
+          (stats.reviewedCards === 1 ? 'card' : 'cards') +
           ' — a small, honest record of what is sticking.'
-        : 'Answer a few quiz questions and mark flashcards as known. This space turns those saved decisions into a picture of what is sticking.';
+        : 'Answer a few quiz questions and mark flashcards as known or not known. This space turns those saved decisions into a picture of what is sticking.';
     }
 
     var generationsLine = $('[data-progress-line="generations"]');
@@ -995,51 +919,63 @@
 
     var answeredLine = $('[data-progress-line="answered"]');
     if (answeredLine) {
-      answeredLine.textContent = answeredQuestions;
+      answeredLine.textContent = stats.answeredQuestions;
     }
 
     var cardsLine = $('[data-progress-line="cards"]');
     if (cardsLine) {
-      cardsLine.textContent = knownCards + ' / ' + totalCards;
+      cardsLine.textContent = stats.masteredCards + ' / ' + stats.totalCards;
     }
 
     var average = $('[data-progress="quiz-average"]');
     if (average) {
-      average.textContent = quizAverage === null ? '—' : quizAverage + '%';
+      average.textContent =
+        stats.averageScore === null ? '—' : stats.averageScore + '%';
     }
 
     var quizNote = $('[data-progress-note="quiz"]');
     if (quizNote) {
-      quizNote.textContent = answeredQuizzes
+      quizNote.textContent = stats.quizAttempts
         ? 'From ' +
-          answeredQuizzes +
+          stats.quizAttempts +
           ' saved quiz ' +
-          (answeredQuizzes === 1 ? 'attempt' : 'attempts') +
-          '.'
+          (stats.quizAttempts === 1 ? 'attempt' : 'attempts') +
+          ' (' +
+          stats.quizzesCompleted +
+          ' completed).'
         : 'Take a quiz to start a saved average.';
     }
 
     var cards = $('[data-progress="cards"]');
     if (cards) {
-      cards.textContent = knownCards;
+      cards.textContent = stats.masteredCards;
     }
 
     var cardsNote = $('[data-progress-note="cards"]');
     if (cardsNote) {
-      cardsNote.textContent = totalCards
-        ? knownCards + ' of ' + totalCards + ' saved cards marked known.'
+      cardsNote.textContent = stats.totalCards
+        ? stats.masteredCards +
+          ' of ' +
+          stats.totalCards +
+          ' saved cards known · ' +
+          stats.reviewedCards +
+          ' reviewed at least once.'
         : 'No saved cards yet.';
     }
 
     var topicCount = $('[data-progress="topics"]');
     if (topicCount) {
-      topicCount.textContent = Object.keys(topics).length;
+      topicCount.textContent = stats.topicCount;
     }
 
     var topicsNote = $('[data-progress-note="topics"]');
     if (topicsNote) {
       topicsNote.textContent = count
-        ? 'Across ' + count + ' saved ' + (count === 1 ? 'generation' : 'generations') + '.'
+        ? 'Across ' +
+          count +
+          ' saved ' +
+          (count === 1 ? 'generation' : 'generations') +
+          '.'
         : 'Your saved topics will collect here.';
     }
 
@@ -1064,11 +1000,10 @@
     });
   }
 
-  function renderHistorySummary(stats) {
+  function renderHistorySummary(stats, records) {
     var sessions = $('[data-history-total]');
     var minutes = $('[data-history-minutes]');
     var average = $('[data-history-average]');
-    var entries = $('[data-history-entries]');
 
     if (sessions) {
       sessions.textContent = stats.totalSessions;
@@ -1079,11 +1014,10 @@
     }
 
     if (average) {
-      average.textContent = stats.averageScore + '%';
-    }
-
-    if (entries) {
-      entries.textContent = stats.totalSessions + ' entries';
+      average.textContent =
+        stats.averageScore === null || !records.length
+          ? '—'
+          : stats.averageScore + '%';
     }
   }
 
@@ -1133,18 +1067,92 @@
     }
 
     var record = history.get(id);
-    var outcome = history.remove(id);
 
-    if (!outcome || !outcome.ok) {
-      showToast('That saved session could not be deleted. Please try again.');
+    if (!record) {
+      showToast('That saved session is no longer available.');
+      renderAll();
       return;
     }
 
-    showToast(
-      'Removed “' +
-        (record ? recordTitle(record) : 'saved session') +
-        '” from History.'
-    );
+    var label = recordTitle(record);
+
+    if (
+      typeof global.confirm === 'function' &&
+      !global.confirm(
+        'Delete “' + label + '” from History? This cannot be undone.'
+      )
+    ) {
+      return;
+    }
+
+    var outcome = history.remove(id);
+
+    if (!outcome || !outcome.ok) {
+      showToast(
+        (outcome && outcome.message) ||
+          'That saved session could not be deleted. Please try again.'
+      );
+      return;
+    }
+
+    showToast('Removed “' + label + '” from History.');
+  }
+
+  function syncFilters() {
+    var search = $('[data-history-search]');
+
+    if (search) {
+      filterState.query = search.value || '';
+    }
+
+    $all('[data-history-filter]').forEach(function (control) {
+      var key = control.getAttribute('data-history-filter');
+
+      if (key) {
+        filterState[key] = control.value || 'all';
+      }
+    });
+  }
+
+  function resetFilters() {
+    var search = $('[data-history-search]');
+
+    if (search) {
+      search.value = '';
+    }
+
+    $all('[data-history-filter]').forEach(function (control) {
+      control.value = 'all';
+    });
+
+    syncFilters();
+    renderAll();
+
+    if (search) {
+      try {
+        search.focus({ preventScroll: true });
+      } catch (error) {
+        search.focus();
+      }
+    }
+  }
+
+  function bindFilters() {
+    var search = $('[data-history-search]');
+
+    if (search) {
+      search.addEventListener('input', function () {
+        syncFilters();
+        renderAll();
+      });
+    }
+
+    $all('[data-history-filter]').forEach(function (control) {
+      control.addEventListener('change', function () {
+        syncFilters();
+        renderAll();
+      });
+    });
   }
 
   function bindActions() {
@@ -1152,6 +1160,14 @@
       var target = event.target;
 
       if (!target || typeof target.closest !== 'function') {
+        return;
+      }
+
+      var resetTrigger = target.closest('[data-history-reset]');
+
+      if (resetTrigger) {
+        event.preventDefault();
+        resetFilters();
         return;
       }
 
@@ -1204,25 +1220,53 @@
     }
   }
 
+  function surfaceStorageIssues() {
+    if (!history || typeof history.getIssues !== 'function') {
+      return;
+    }
+
+    var issues = history.getIssues();
+    var important = issues.filter(function (issue) {
+      return (
+        issue.code === 'corrupt-history' ||
+        issue.code === 'corrupt-notes' ||
+        issue.code === 'unsupported-version' ||
+        issue.code === 'invalid-record' ||
+        issue.code === 'migration-failed' ||
+        issue.code === 'write-failed'
+      );
+    });
+
+    if (!important.length) {
+      return;
+    }
+
+    showToast(important[important.length - 1].message);
+  }
+
   function renderAll() {
     var records = getRecords();
-    var activity = activityWithSaved(records);
-    var stats = computeStats(records, activity);
+    var stats = computeStats(records);
+    var visible = filteredRecords(records);
 
     renderStats(stats);
     renderWelcome(stats);
-    renderTodayFocus(activity);
-    renderActivity(stats, activity);
+    renderTodayFocus(stats.activity);
+    renderActivity(stats, stats.activity);
     renderGoal(stats);
-    renderSessionLists(records);
-    renderHistorySummary(stats);
-    renderSavedGenerations(records);
-    renderProgress(records);
+    renderRecentSessions(records);
+    renderHistorySummary(stats, records);
+    renderHistoryArchive(records, visible);
+    renderSavedGenerations(records, visible);
+    renderProgress(records, stats);
   }
 
   function init() {
     bindActions();
+    bindFilters();
+    syncFilters();
     renderAll();
+    surfaceStorageIssues();
 
     document.documentElement.setAttribute('data-ready', 'true');
   }

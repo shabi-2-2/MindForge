@@ -52,6 +52,7 @@
   var current = null;
   var quizAnswers = Object.create(null);
   var knownCards = Object.create(null);
+  var reviewedCards = Object.create(null);
   var activeTab = 'summary';
   var copyTimer = null;
 
@@ -475,7 +476,10 @@
 
     var progress = {
       quiz: { answers: quizAnswers },
-      flashcards: { known: Object.keys(knownCards) }
+      flashcards: {
+        known: Object.keys(knownCards),
+        reviewed: Object.keys(reviewedCards)
+      }
     };
 
     current.result.progress = progress;
@@ -670,6 +674,8 @@
     } else {
       delete knownCards[cardId];
     }
+
+    reviewedCards[cardId] = true;
 
     card.classList.toggle('is-known', value);
     card.classList.toggle('is-unknown', !value);
@@ -938,6 +944,13 @@
     if (progress.flashcards && Array.isArray(progress.flashcards.known)) {
       progress.flashcards.known.forEach(function (id) {
         knownCards[id] = true;
+        reviewedCards[id] = true;
+      });
+    }
+
+    if (progress.flashcards && Array.isArray(progress.flashcards.reviewed)) {
+      progress.flashcards.reviewed.forEach(function (id) {
+        reviewedCards[id] = true;
       });
     }
   }
@@ -948,6 +961,7 @@
     current = { result: result };
     quizAnswers = Object.create(null);
     knownCards = Object.create(null);
+    reviewedCards = Object.create(null);
     hydrateProgress(result);
 
     renderSummary(result);
@@ -1041,6 +1055,7 @@
         tab: activeTab,
         answers: Object.assign({}, quizAnswers),
         known: Object.keys(knownCards),
+        reviewed: Object.keys(reviewedCards),
         score: scoreState()
       };
     }

@@ -2,7 +2,7 @@
 
 **Shape the way you learn.**
 
-A premium study workspace for deliberate learning. Phase 0 delivered the dashboard foundation — visual system, navigation, theme persistence, study statistics, recent sessions and activity visualisation. Part 2 added the Study Workspace and local mock generation. Part 3 made the generated material interactive: a readable summary, a five-question scored quiz, flip flashcards, saved generations and progress derived from your own answers. Phase 1 hardened that workflow with explicit generation states, configurable input limits and runtime response validation. Phase 2 moved generation behind a FastAPI backend. **Phase 3.1 replaced the backend mock with real server-side Google Gemini generation**, and **Phase 3.2 improves prompt quality, adds semantic quality gates and one bounded repair attempt**, while keeping the existing API and frontend contract.
+A premium study workspace for deliberate learning. Phase 0 delivered the dashboard foundation — visual system, navigation, theme persistence, study statistics, recent sessions and activity visualisation. Part 2 added the Study Workspace and local mock generation. Part 3 made the generated material interactive: a readable summary, a five-question scored quiz, flip flashcards, saved generations and progress derived from your own answers. Phase 1 hardened that workflow with explicit generation states, configurable input limits and runtime response validation. Phase 2 moved generation behind a FastAPI backend. **Phase 3.1 replaced the backend mock with real server-side Google Gemini generation**, and **Phase 3.2 improves prompt quality, adds semantic quality gates and one bounded repair attempt**, while keeping the existing API and frontend contract. **Phase 4 hardens browser-local persistence and History** with versioned schemas, data-safe migration, note de-duplication, search and filters, and analytics derived only from saved records.
 
 The frontend is still plain HTML, CSS and vanilla JavaScript with no framework and no build step. The browser calls only the MindForge FastAPI backend; the API key and Gemini calls stay on the server.
 
@@ -132,7 +132,8 @@ A successful response has exactly five quiz questions and follows the existing c
 | Browser shows `OPTIONS /api/generate 400` or a CORS error | The frontend origin is not allowed. Loopback origins (`localhost`, `127.0.0.1`, `[::1]`) on any port are allowed by default. If you use a different host or a `file://` page, serve the UI from a loopback origin or add the exact origin to `CORS_ORIGINS`, then restart uvicorn. Review `CORS_ORIGINS` / `CORS_ORIGIN_REGEX` in `backend/app/config.py`. |
 | Browser shows `Unable to reach the backend` | FastAPI is not running on port 8000, or `js/api-config.js` points elsewhere. Start the backend and check that requests go to `http://127.0.0.1:8000/api/generate`. |
 | `GET /health` returns 404 | Expected: only `GET /api/health` is defined. Use `http://127.0.0.1:8000/api/health`. |
-| Generation works but History does not save | Browser storage is blocked or full. The result still renders; clear storage or allow site data. |
+| Generation works but History does not save | Browser storage is blocked or full. The result still renders and stays available for this tab; allow site data or delete a saved session, then try again. Quota failures are reported without crashing the app. |
+| History shows fewer sessions than expected | Some records were unreadable. MindForge preserves the raw payload in `mindforge:generations:backup` and shows a notice instead of silently replacing your data. Inspect that key before clearing it. |
 
 Never commit `.env`. If a key is accidentally exposed, revoke it in Google AI Studio and create a new one.
 
@@ -146,12 +147,13 @@ Never commit `.env`. If a key is accidentally exposed, revoke it in Google AI St
 - **Summary actions** that copy the summary and key concepts through the Clipboard API (with a legacy copy fallback) and download the same content as a `.txt` file.
 - **Scored retrieval quiz** with dynamic options, one-shot scoring, correct/incorrect feedback, the correct answer, an explanation, a running score, a final percentage and a working Restart action.
 - **Flip flashcards** with accessible Known / Not known controls and a live mastered count. The flip is a 3D transform that respects `prefers-reduced-motion`.
-- **Saved generations** in History. Every completed generation is saved automatically, can be reopened with its quiz answers and card mastery restored, and can be deleted individually.
-- **Live progress** derived from saved records: quiz average, questions answered, cards known, topics explored and a per-session summary. Empty history is handled without errors.
+- **Saved generations** in History. Every completed generation is saved automatically with a stable ID and timestamps, can be reopened with its quiz answers and card progress restored, and can be deleted individually after confirmation. History is newest-first and supports live search plus difficulty, answer-style and progress filters.
+- **Durable local history** with an explicit schema version, automatic migration of older unversioned records, duplicate-ID protection, content-addressed notes stored once, and corruption/quota handling that preserves raw data instead of silently replacing it.
+- **Live analytics derived only from saved records**: sessions, focus minutes, quiz attempts and completion, average score, questions answered, known and reviewed cards, topic history, a 14-day activity chart, a consecutive-day streak and per-session summaries. Zero and missing data render honest empty states rather than invented streaks or mastery.
 - **Single-page navigation** across Dashboard, Study Workspace, History, Progress and Settings. The active section is highlighted, the URL hash is deep-linkable, and each view moves focus to its heading.
 - **Persistent theme** with a light/dark toggle in the top bar and matching controls in Settings. The choice is saved to `localStorage` under `mindforge:theme`; with no saved choice, MindForge follows the OS preference. Theme changes are mirrored between tabs.
 - **Responsive sidebar** that becomes a keyboard-accessible off-canvas drawer below 1140px, with a scrim, focus trap, Escape-to-close and a working mobile menu button.
-- **Realistic mock data** for 16 study sessions across nine subjects, quiz scores, flashcard decks and fourteen days of activity.
+- **Realistic dashboard fixtures** for the user profile and weekly goal only. Every statistic, session list, activity bar and progress figure is now derived from saved records.
 - **Accessibility basics**: semantic landmarks, skip link, visible focus indicators, `aria-current` navigation, labelled icon buttons, inline `aria-invalid` field errors, tab and radio semantics, live-region feedback and `prefers-reduced-motion` support.
 - **Design tokens** for colour, spacing, borders, radii, shadows and typography, with full light and dark palettes.
 
@@ -210,11 +212,16 @@ Saved records add `progress`, `savedAt` and `updatedAt`:
 {
   progress: {
     quiz: { answers: { [questionId]: optionIndex } },
-    flashcards: { known: [cardId] }
+    flashcards: {
+      known: [cardId],    // marked known
+      reviewed: [cardId]  // shown or answered at least once
+    }
   },
   savedAt, updatedAt
 }
 ```
+
+When the record is written, the `notes` field is replaced by a content-addressed `notesRef` and stored once in `mindforge:notes`. Reads hydrate `notes` back onto the record, so consumers do not need to know about the split. Records are deduplicated by `id`; saving the same session again updates that record instead of appending a duplicate.
 
 The generator is accessed through one frontend interface:
 
@@ -261,17 +268,67 @@ MindForgeGeneration.resetProvider();
 
 ## Persistence
 
-| Key | Purpose |
+All app data stays in this browser profile. Nothing is uploaded to an account or synchronized between devices.
+
+| Key | Contents |
 | --- | --- |
 | `mindforge:theme` | Light or dark preference. |
-| `mindforge:generations` | Up to 30 saved generations, newest first. |
+| `mindforge:generations` | Versioned envelope `{ version: 2, updatedAt, records }`. Up to 30 records, newest first. |
+| `mindforge:notes` | Versioned, content-addressed note store. One copy per distinct notes text, referenced by `notesRef`. |
+| `mindforge:generations:backup` | Up to three raw payloads that could not be parsed, kept so they can be recovered manually. |
 
-- Completed generations are saved automatically after a successful generation.
-- Opening a saved generation restores its quiz answers and known cards.
-- Deleting a record removes only that record. Unrelated `localStorage` keys are left untouched.
-- History is mirrored across tabs through the `storage` event.
-- `MindForgeStorage` falls back to an in-memory store when `localStorage` is blocked or full. In that case the UI reports that the session could not be saved to History, but generation and interaction still work.
-- Clipboard failures fall back to `document.execCommand('copy')`; if both fail, the UI explains that the summary must be copied manually. Download failures are reported in the same status line.
+### How saving works
+
+- A successful generation receives a stable `id`, `createdAt`, `topic`, `notes`, `config` and `meta` before it is saved.
+- Records are keyed by `id`. Saving the same session twice updates `updatedAt` but keeps the original `createdAt` and `savedAt`, so no duplicate history entry appears.
+- Large notes are hashed and stored once. Removing the last record that references a note removes the note; unrelated notes are untouched.
+- History is written newest-first. Opening a record restores its quiz answers and known/reviewed cards.
+- Progress updates and deletions rewrite the history envelope and immediately refresh dashboard, History and Progress analytics.
+- History updates are mirrored across tabs through the `storage` event.
+
+### Migration and recovery
+
+- Unversioned legacy arrays are migrated on read to the `version: 2` envelope without discarding records.
+- Records from a newer schema version are left untouched and reported in the UI; MindForge does not overwrite data it does not understand.
+- Invalid JSON, unexpected shapes and invalid records are copied to `mindforge:generations:backup` before being skipped, and a plain-language notice is shown. The original key is not silently replaced with an empty list.
+- Invalid quiz answers and card IDs are dropped during normalisation; valid parts of the record are kept.
+- When storage is blocked, MindForge uses an in-memory store for the current tab and explains that the session will disappear when the tab closes.
+- When the quota is exhausted, saving fails with a clear message. The in-memory copy still lets the current tab continue, and the UI suggests deleting a saved session or clearing site data.
+
+### Clearing data safely
+
+To remove MindForge data, use the browser's site-data settings for the app's origin and delete only `mindforge:*` keys, or remove individual sessions with the History delete button. Avoid clearing all site data for unrelated origins. If you need to inspect a failed payload first, read `mindforge:generations:backup` in DevTools before deleting it.
+
+Browser-local storage has hard limits and can be cleared by the browser, private-mode exit or OS cleanup. It is not a backup, is not encrypted by MindForge and is not shared across devices or browsers.
+
+### Clipboard and downloads
+
+Clipboard failures fall back to `document.execCommand('copy')`; if both fail, the UI explains that the summary must be copied manually. Download failures are reported in the same status line.
+
+## Analytics rules
+
+`js/analytics.js` is a pure module with no DOM or storage access. The dashboard, History and Progress views all read from it, so the same saved record is counted consistently.
+
+| Measure | Rule |
+| --- | --- |
+| Sessions | One per saved record. |
+| Focus minutes | Sum of each record's `summary.estimatedMinutes`; missing or invalid values count as 0. |
+| Quiz attempt | A saved record with at least one valid, in-range answer. One attempt per record; repeated progress updates do not create extra attempts. |
+| Quiz completed | A saved record where every quiz question has a valid answer. |
+| Average score | Mean of started attempts. `null` when there are no attempts, so the UI shows `—` rather than a misleading `0%`. |
+| Completed average | Mean of completed quizzes only. |
+| Best score | Highest started-attempt percentage; `0` when none exist. |
+| Questions answered | Valid answered questions across all saved records. |
+| Known cards | Unique card IDs marked known in each record, summed across records. |
+| Reviewed cards | Unique card IDs marked reviewed or known in each record, summed across records. |
+| Topic count | Distinct `topic` values across saved records. |
+| Activity | Focus minutes per day for the last 14 days, derived from record `createdAt`. |
+| Streak | Consecutive calendar days ending today, or ending yesterday when nothing was saved today, that contain at least one saved record. |
+| Week sessions | Records created in the last 7 calendar days. |
+
+Sessions are only counted once. Because one attempt per record is currently tracked, restarting a quiz inside the same saved session replaces its answers rather than adding a second attempt. Historical attempt-by-attempt scoring is not stored.
+
+When history is empty, all counts render as `0` or `—`, the activity chart shows an empty baseline and the streak reads `0` with a prompt to study today. No fixture sessions, mastery or streak are fabricated.
 
 ## Project structure
 
@@ -285,14 +342,15 @@ MindForge/
 │   └── responsive.css            # Tablet, phone and drawer behaviour
 ├── js/
 │   ├── api-config.js             # Backend base URL (browser never sees Gemini keys)
-│   ├── app.js                    # Derived statistics, dashboard, History and Progress
+│   ├── analytics.js              # Pure record-based statistics, scoring, streak and filters
+│   ├── app.js                    # Dashboard, History, Progress and filter/delete wiring
 │   ├── generation.js             # Validated frontend interface to POST /api/generate
-│   ├── history.js                # Saved-generation store, contract validation and progress hydration
+│   ├── history.js                # Versioned store, migration, note de-duplication and recovery
 │   ├── learning.js               # Result tabs, quiz, flashcards, copy and download
-│   ├── mock-data.js              # Deterministic dashboard fixtures
+│   ├── mock-data.js              # User profile and weekly-goal fixtures only
 │   ├── mock-generator.js         # Test-only local provider, never an automatic fallback
 │   ├── navigation.js             # Hash routing, focus management, mobile drawer
-│   ├── storage.js                # Defensive localStorage wrapper
+│   ├── storage.js                # Defensive localStorage wrapper with quota classification
 │   ├── study-contract.js         # Configurable limits, request/response validation, migration
 │   ├── theme.js                  # Theme persistence and cross-tab sync
 │   └── workspace.js              # Form validation, state machine, generation and reopening
@@ -308,7 +366,8 @@ MindForge/
 │   ├── .env.example              # Placeholders only; copy to .env
 │   └── requirements.txt
 ├── tests/
-│   └── contract.test.mjs         # Frontend contract, generation and migration tests
+│   ├── contract.test.mjs         # Frontend contract, generation metadata and migration tests
+│   └── persistence.test.mjs      # Storage, schema, duplicate, filter and analytics tests
 ├── .gitignore
 └── README.md
 ```
@@ -339,13 +398,28 @@ The backend suite mocks the Gemini SDK. It does not need a real API key, does no
 
 ### Frontend
 
-The contract, frontend generation service, mock fixture and legacy migration are covered by Node's built-in test runner (Node 18+). No dependencies are required:
+The contract, generation service, persistence layer, migration and analytics are covered by Node's built-in test runner (Node 18+). No dependencies are required:
 
 ```bash
-node --test tests/contract.test.mjs
+node --test tests/*.test.mjs
 ```
 
-The suite covers valid and trimmed requests, whitespace-only input, configured over-limit input, invalid answer style/difficulty, the response contract, every response-validation rule, provider failure diagnostics, the exact backend URL, no silent mock fallback and legacy Phase 0 migration.
+`tests/contract.test.mjs` covers valid and trimmed requests, whitespace-only input, configured over-limit input, invalid answer style/difficulty, the response contract, every response-validation rule, provider failure diagnostics, backend session metadata, the exact backend URL, no silent mock fallback and legacy migration.
+
+`tests/persistence.test.mjs` uses a mocked browser storage and never calls Gemini. It covers:
+
+- Save and reload with stable IDs and timestamps.
+- Saving the same session twice without creating a duplicate.
+- Note de-duplication and cleanup when the last reference is removed.
+- Migration of legacy unversioned arrays.
+- Corrupt history and corrupt notes being backed up rather than replaced.
+- Newer schema versions being left untouched and reported.
+- Quota exhaustion and blocked storage producing clear failures without crashing the UI.
+- Quiz answer and card-progress normalisation, including reviewed cards.
+- Search by topic (case-insensitive) and difficulty, answer-style, completed, in-progress, not-started and known-card filters.
+- Deletion updating every derived statistic.
+- Repeated attempts and scoring being counted once per saved record.
+- Empty history producing zero/`null` analytics and an empty activity baseline.
 
 ### Real provider smoke test
 
@@ -362,19 +436,26 @@ The automated tests are mocked. To verify real Gemini generation, configure a va
 7. Temporarily remove `GEMINI_API_KEY` from `backend/.env` and restart: generation returns a clear configuration error (503), not mock content.
 8. Use an invalid key: the UI shows a safe authentication error and never displays the key.
 9. Start a slow generation, then reopen a History record: the slow response must not replace the reopened record.
-10. Reopen a saved generation: quiz answers and card mastery are restored. Check History, Progress, the dashboard and the theme toggle still behave as before.
-11. Check the workspace, result tabs and History at 375px width: no horizontal overflow.
-12. Confirm DevTools shows requests only to the MindForge backend, never to Google Gemini, and that no key appears in the browser or console.
+10. Reopen a saved generation: quiz answers and card progress are restored. Check History, Progress, the dashboard and the theme toggle still behave as before.
+11. Save a session, reload the page: the session, its progress and every statistic are restored with the same ID and original creation date.
+12. Save or reopen the same session twice: History still shows one entry, not a duplicate.
+13. Search History by part of a topic and combine it with difficulty, answer style and progress filters: the list and counts update, and no-results states are shown.
+14. Delete a saved session and confirm: only that record disappears and dashboard, History and Progress totals update immediately. Cancel the confirmation to keep it.
+15. With DevTools, corrupt `mindforge:generations`, reload and confirm the raw payload is copied to `mindforge:generations:backup` and a clear notice appears instead of silent data loss.
+16. Clear all saved sessions: statistics show `0`/`—`, the activity chart is empty and the streak reads `0` without fabricated data.
+17. Check the workspace, result tabs and History at 375px width: no horizontal overflow, including the filter toolbar.
+18. Confirm DevTools shows requests only to the MindForge backend, never to Google Gemini, and that no key appears in the browser or console.
 
 ## Scope for this part
 
-Phase 3.1 replaced the backend mock with server-side Gemini generation while preserving the existing `POST /api/generate` request/response contract, frontend UI and local History/Progress features. Phase 3.2 improves prompt quality, adds semantic quality gates, strict answer-index typing and one bounded repair attempt, with mocked automated tests and documentation. Work stops here; no additional phases are included.
+Phase 4 hardens browser-local persistence and analytics. It adds a versioned history schema, legacy migration, duplicate-ID protection, content-addressed notes, corruption backups, quota and blocked-storage handling, search and filters, confirmed deletion, reviewed-card tracking and record-based analytics. The existing UI, theme, navigation, API contract and Gemini generation flow are unchanged. Work stops here; no deployment, accounts, backend persistence or additional phases are included.
 
 ## Notes
 
-- Dates in the mock dashboard fixtures are generated relative to the current day so recency labels remain believable.
+- The only remaining dashboard fixtures are the user profile and weekly goal. All study statistics, session lists, activity bars, topics and progress figures derive from saved records.
 - The test-only mock generator returns a Promise after a short delay, but production generation always goes through the FastAPI backend.
-- Dashboard statistics merge the dashboard fixtures with saved generations. Quiz averages include only saved sessions with at least one answered question.
+- Quiz attempts are counted per saved session, not per restart. A restart replaces that session's answers; attempt-by-attempt history is not stored.
+- History and notes are local to one browser profile. There is no account, export, import or cross-device sync, and browser cleanup can erase them permanently.
 - A local static server is required for consistent API calls, history, clipboard and hash behaviour. Opening `index.html` via `file://` will not reach the backend in most browsers.
 - Tested in current Chrome, with responsive checks from 1440px down to 360px.
 

@@ -419,7 +419,7 @@
                 <span class="goal-streak__icon" aria-hidden="true">
                   <svg class="icon" aria-hidden="true"><use href="#icon-flame"></use></svg>
                 </span>
-                <p><strong><span data-streak>—</span>-day streak</strong><span>A personal best</span></p>
+                <p><strong><span data-streak>—</span>-day streak</strong><span data-streak-note>Study today to begin</span></p>
               </div>
             </aside>
           </div>
@@ -789,6 +789,44 @@
             </article>
           </div>
 
+          <div class="history-toolbar card" role="search" aria-label="Search and filter saved sessions">
+            <div class="history-toolbar__field history-toolbar__field--search">
+              <label class="field__label" for="history-search">Search topics</label>
+              <input class="field__input" id="history-search" type="search" placeholder="Search by topic, style or difficulty…" autocomplete="off" data-history-search>
+            </div>
+            <div class="history-toolbar__field">
+              <label class="field__label" for="history-difficulty">Difficulty</label>
+              <select class="field__input" id="history-difficulty" data-history-filter="difficulty">
+                <option value="all">All difficulties</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            <div class="history-toolbar__field">
+              <label class="field__label" for="history-style">Answer style</label>
+              <select class="field__input" id="history-style" data-history-filter="answerStyle">
+                <option value="all">All styles</option>
+                <option value="kid">Explain Like I'm 10</option>
+                <option value="exam">Exam-Focused</option>
+                <option value="detailed">Detailed</option>
+              </select>
+            </div>
+            <div class="history-toolbar__field">
+              <label class="field__label" for="history-status">Progress</label>
+              <select class="field__input" id="history-status" data-history-filter="status">
+                <option value="all">All sessions</option>
+                <option value="not-started">Quiz not started</option>
+                <option value="in-progress">Quiz in progress</option>
+                <option value="completed">Quiz completed</option>
+                <option value="known">Has known cards</option>
+              </select>
+            </div>
+            <button class="btn btn--quiet btn--sm history-toolbar__reset" type="button" data-history-reset>
+              Clear filters
+            </button>
+          </div>
+
           <section class="card sessions-card saved-card" aria-labelledby="saved-title">
             <header class="card__header sessions-card__header">
               <div>
@@ -798,6 +836,9 @@
               <span class="count-badge" data-saved-count>0 saved</span>
             </header>
             <ul class="saved-list" data-saved-generations aria-label="Saved generated study sessions"></ul>
+            <p class="saved-no-results" data-saved-no-results hidden>
+              No saved sessions match the current search or filters.
+            </p>
             <div class="saved-empty" data-saved-empty>
               <span class="saved-empty__icon" aria-hidden="true">
                 <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
@@ -1002,10 +1043,10 @@
                 <div class="about-card__copy">
                   <p class="card__eyebrow">The build</p>
                   <h2 id="about-title">About MindForge</h2>
-                  <p>Phase 0, Part 3 — the interactive local study workspace. Shape a topic and your notes into a summary, scored retrieval quiz and flip-card deck entirely in the browser. Completed generations, answers and mastery are saved locally; there is no account, backend or AI call.</p>
+                  <p>Shape a topic and your notes into a summary, scored retrieval quiz and flip-card deck. Generation runs through the MindForge backend, which calls Gemini on the server; the browser never holds the API key. Completed generations, answers and card progress are saved in this browser only — there is no account and no cross-device sync.</p>
                 </div>
                 <dl class="about-list">
-                  <div><dt>Version</dt><dd>0.3.0 · Interactive results</dd></div>
+                  <div><dt>Version</dt><dd>0.4.0 · Durable learning history</dd></div>
                   <div><dt>Storage</dt><dd>Local browser only</dd></div>
                   <div><dt>Navigation</dt><dd>Single page, no reload</dd></div>
                 </dl>
@@ -1032,6 +1073,7 @@
 
   <script src="js/storage.js"></script>
   <script src="js/study-contract.js"></script>
+  <script src="js/analytics.js"></script>
   <script src="js/history.js"></script>
   <script src="js/mock-data.js"></script>
   <script src="js/mock-generator.js"></script>

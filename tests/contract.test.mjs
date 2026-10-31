@@ -425,6 +425,38 @@ test('a simulated provider failure is recoverable and does not leak notes', asyn
   }
 });
 
+test('backend results receive stable session metadata before they are saved', async () => {
+  const current = await makeResult();
+  const raw = {
+    summary: clone(current.summary),
+    quiz: clone(current.quiz),
+    flashcards: clone(current.flashcards)
+  };
+
+  generation.setProvider(() => Promise.resolve(clone(raw)), 'backend-shape');
+
+  try {
+    const first = await generation.generate(validInput);
+    const second = await generation.generate(validInput);
+
+    assert.match(first.id, /^study-/);
+    assert.notEqual(first.id, second.id);
+    assert.ok(!Number.isNaN(new Date(first.createdAt).getTime()));
+    assert.equal(first.topic, 'The adaptive immune system');
+    assert.equal(first.notes, validInput.notes);
+    assert.deepEqual(first.config, {
+      answerStyle: 'exam',
+      answerStyleLabel: 'Exam-Focused',
+      difficulty: 'medium',
+      difficultyLabel: 'Medium'
+    });
+    assert.equal(first.meta.characters.topic, 'The adaptive immune system'.length);
+    assert.equal(first.meta.characters.notes, validInput.notes.length);
+  } finally {
+    generation.resetProvider();
+  }
+});
+
 test('legacy Phase 0 records migrate to the Phase 1 contract', async () => {
   const current = await makeResult();
   const legacy = {

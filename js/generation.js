@@ -44,6 +44,95 @@
   var provider = null;
   var providerName = 'api-backend';
 
+  var STYLE_LABELS = {
+    kid: "Explain Like I'm 10",
+    exam: 'Exam-Focused',
+    detailed: 'Detailed'
+  };
+
+  var DIFFICULTY_LABELS = {
+    easy: 'Easy',
+    medium: 'Medium',
+    hard: 'Hard'
+  };
+
+  function isObject(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function createSessionId() {
+    if (global.crypto && typeof global.crypto.randomUUID === 'function') {
+      return 'study-' + global.crypto.randomUUID();
+    }
+
+    return (
+      'study-' +
+      Date.now().toString(36) +
+      '-' +
+      Math.random().toString(36).slice(2, 10)
+    );
+  }
+
+  function decorateResult(result, request) {
+    var value = result || {};
+
+    if (typeof value.id !== 'string' || !value.id) {
+      value.id = createSessionId();
+    }
+
+    if (
+      typeof value.createdAt !== 'string' ||
+      isNaN(new Date(value.createdAt).getTime())
+    ) {
+      value.createdAt = new Date().toISOString();
+    }
+
+    if (typeof value.topic !== 'string' || !value.topic) {
+      value.topic = request.topic;
+    }
+
+    if (typeof value.notes !== 'string') {
+      value.notes = request.notes;
+    }
+
+    var config = isObject(value.config) ? value.config : {};
+
+    value.config = {
+      answerStyle: request.answerStyle,
+      answerStyleLabel:
+        typeof config.answerStyleLabel === 'string' && config.answerStyleLabel
+          ? config.answerStyleLabel
+          : STYLE_LABELS[request.answerStyle] || request.answerStyle,
+      difficulty: request.difficulty,
+      difficultyLabel:
+        typeof config.difficultyLabel === 'string' && config.difficultyLabel
+          ? config.difficultyLabel
+          : DIFFICULTY_LABELS[request.difficulty] || request.difficulty
+    };
+
+    if (!isObject(value.meta)) {
+      value.meta = {};
+    }
+
+    if (typeof value.meta.generator !== 'string') {
+      value.meta.generator = 'gemini';
+    }
+
+    if (
+      isObject(value.meta.characters) &&
+      typeof value.meta.characters.topic === 'number'
+    ) {
+      return value;
+    }
+
+    value.meta.characters = {
+      topic: request.topic.length,
+      notes: request.notes.length
+    };
+
+    return value;
+  }
+
   function contract() {
     return global.MindForgeContract;
   }
@@ -296,7 +385,9 @@
       function (error) {
         throw wrapProviderError(error);
       }
-    );
+    ).then(function (value) {
+      return decorateResult(value, requestValidation.value);
+    });
   }
 
   global.MindForgeGeneration = Object.freeze({
