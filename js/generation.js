@@ -17,6 +17,7 @@
     INVALID_RESPONSE: 'invalid-response',
     GENERATION_FAILED: 'generation-failed',
     PROVIDER_UNAVAILABLE: 'provider-unavailable',
+    INVALID_PROVIDER_RESPONSE: 'invalid-provider-response',
     CONFIGURATION_ERROR: 'configuration-error',
     RATE_LIMITED: 'rate-limited',
     PROVIDER_TIMEOUT: 'provider-timeout',
@@ -94,6 +95,10 @@
   function mapErrorCode(status, providerCode) {
     if (providerCode === 'configuration_error') {
       return ERROR_CODES.CONFIGURATION_ERROR;
+    }
+
+    if (providerCode === 'invalid_provider_response') {
+      return ERROR_CODES.INVALID_PROVIDER_RESPONSE;
     }
 
     if (providerCode === 'provider_rate_limited' || status === 429) {

@@ -63,6 +63,51 @@ def test_generate_returns_valid_gemini_material(
         assert card["back"].strip()
 
 
+def test_repair_attempt_returns_valid_material(
+    api_client, make_service, valid_payload
+):
+    service, client = make_service(
+        ["not JSON", json.dumps(valid_payload)]
+    )
+    override_service(service)
+
+    response = api_client.post("/api/generate", json=REQUEST)
+
+    assert response.status_code == 200
+    assert len(response.json()["quiz"]) == 5
+    assert len(client.calls) == 2
+
+
+def test_invalid_output_is_never_replaced_with_mock_material(
+    api_client, make_service, valid_payload
+):
+    service, _ = make_service(["not JSON", "still not JSON"])
+    override_service(service)
+
+    response = api_client.post("/api/generate", json=REQUEST)
+
+    assert response.status_code == 502
+    assert response.json()["detail"]["code"] == "invalid_provider_response"
+    assert "summary" not in response.text
+    assert "keyConcepts" not in response.text
+    assert valid_payload["summary"]["text"] not in response.text
+
+
+def test_semantic_quality_failure_returns_safe_502(
+    api_client, make_service, valid_payload
+):
+    valid_payload["quiz"][1]["question"] = valid_payload["quiz"][0]["question"]
+    service, client = make_service([json.dumps(valid_payload)])
+    override_service(service)
+
+    response = api_client.post("/api/generate", json=REQUEST)
+
+    assert response.status_code == 502
+    assert response.json()["detail"]["code"] == "invalid_provider_response"
+    assert "Photosynthesis converts" not in response.text
+    assert len(client.calls) == 2
+
+
 def test_missing_api_key_returns_safe_configuration_error(
     api_client, make_service
 ):

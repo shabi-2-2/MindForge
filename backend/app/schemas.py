@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import List
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictInt, field_validator
 
 
 class AnswerStyle(str, Enum):
@@ -50,7 +50,7 @@ class GenerateRequest(BaseModel):
 class QuizQuestion(BaseModel):
     question: str = Field(..., min_length=1)
     options: List[str] = Field(..., min_length=4, max_length=4)
-    correctAnswer: int = Field(..., ge=0, le=3)
+    correctAnswer: StrictInt = Field(..., ge=0, le=3)
     explanation: str = Field(..., min_length=1)
 
     @field_validator("options")

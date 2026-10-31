@@ -248,6 +248,74 @@ test('the default provider posts to the backend generate URL', async () => {
   }
 });
 
+test('the default provider never falls back to mock content', async () => {
+  generation.resetProvider();
+  runtime.fetch = () => Promise.reject(new Error('network down'));
+
+  try {
+    await assert.rejects(
+      generation.generate(validInput),
+      (error) => {
+        assert.equal(error.code, 'provider-unavailable');
+        assert.equal(error.recoverable, true);
+        return true;
+      }
+    );
+  } finally {
+    delete runtime.fetch;
+  }
+
+  runtime.fetch = () =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ summary: {}, quiz: [], flashcards: [] })
+    });
+
+  try {
+    await assert.rejects(
+      generation.generate(validInput),
+      (error) => {
+        assert.equal(error.code, 'invalid-response');
+        return true;
+      }
+    );
+  } finally {
+    delete runtime.fetch;
+    generation.resetProvider();
+  }
+});
+
+test('invalid Gemini output is distinguished from a network failure', async () => {
+  generation.resetProvider();
+  runtime.fetch = () =>
+    Promise.resolve({
+      ok: false,
+      status: 502,
+      json: () =>
+        Promise.resolve({
+          detail: {
+            code: 'invalid_provider_response',
+            message: 'Gemini returned incomplete or unusable study material. Please try again.'
+          }
+        })
+    });
+
+  try {
+    await assert.rejects(
+      generation.generate(validInput),
+      (error) => {
+        assert.equal(error.code, 'invalid-provider-response');
+        assert.equal(error.recoverable, true);
+        assert.match(error.message, /unusable/);
+        return true;
+      }
+    );
+  } finally {
+    delete runtime.fetch;
+    generation.resetProvider();
+  }
+});
+
 test('the response validator enforces every contract rule', async (t) => {
   const base = await makeResult();
 

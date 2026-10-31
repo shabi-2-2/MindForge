@@ -2,7 +2,7 @@
 
 **Shape the way you learn.**
 
-A premium study workspace for deliberate learning. Phase 0 delivered the dashboard foundation — visual system, navigation, theme persistence, study statistics, recent sessions and activity visualisation. Part 2 added the Study Workspace and local mock generation. Part 3 made the generated material interactive: a readable summary, a five-question scored quiz, flip flashcards, saved generations and progress derived from your own answers. Phase 1 hardened that workflow with explicit generation states, configurable input limits and runtime response validation. Phase 2 moved generation behind a FastAPI backend. **Phase 3.1 replaces the backend mock with real server-side Google Gemini generation**, while keeping the existing API and frontend contract.
+A premium study workspace for deliberate learning. Phase 0 delivered the dashboard foundation — visual system, navigation, theme persistence, study statistics, recent sessions and activity visualisation. Part 2 added the Study Workspace and local mock generation. Part 3 made the generated material interactive: a readable summary, a five-question scored quiz, flip flashcards, saved generations and progress derived from your own answers. Phase 1 hardened that workflow with explicit generation states, configurable input limits and runtime response validation. Phase 2 moved generation behind a FastAPI backend. **Phase 3.1 replaced the backend mock with real server-side Google Gemini generation**, and **Phase 3.2 improves prompt quality, adds semantic quality gates and one bounded repair attempt**, while keeping the existing API and frontend contract.
 
 The frontend is still plain HTML, CSS and vanilla JavaScript with no framework and no build step. The browser calls only the MindForge FastAPI backend; the API key and Gemini calls stay on the server.
 
@@ -128,7 +128,7 @@ A successful response has exactly five quiz questions and follows the existing c
 | `502 provider_auth_error` | Gemini rejected the key. Check for extra spaces or a revoked/restricted key in AI Studio, update `GEMINI_API_KEY`, and restart. |
 | `429 provider_rate_limited` | You hit a rate limit or exhausted the free-tier quota. Wait, check usage in AI Studio, or enable billing/raise the quota. The backend does not retry this automatically. |
 | `504 provider_timeout` or `502 provider_unavailable` | The network is slow or blocked. Check the server's connection, try again, or raise `GEMINI_TIMEOUT_SECONDS` carefully. |
-| `502 invalid_provider_response` | Gemini returned unreadable or schema-invalid JSON. Try again; if it repeats, check that `GEMINI_MODEL` supports JSON structured output. |
+| `502 invalid_provider_response` | Gemini returned unreadable, truncated, structurally invalid or semantically weak study material, and the single repair attempt also failed. Try again; if it repeats, check that `GEMINI_MODEL` supports JSON structured output. |
 | Browser shows `OPTIONS /api/generate 400` or a CORS error | The frontend origin is not allowed. Loopback origins (`localhost`, `127.0.0.1`, `[::1]`) on any port are allowed by default. If you use a different host or a `file://` page, serve the UI from a loopback origin or add the exact origin to `CORS_ORIGINS`, then restart uvicorn. Review `CORS_ORIGINS` / `CORS_ORIGIN_REGEX` in `backend/app/config.py`. |
 | Browser shows `Unable to reach the backend` | FastAPI is not running on port 8000, or `js/api-config.js` points elsewhere. Start the backend and check that requests go to `http://127.0.0.1:8000/api/generate`. |
 | `GET /health` returns 404 | Expected: only `GET /api/health` is defined. Use `http://127.0.0.1:8000/api/health`. |
@@ -235,17 +235,22 @@ MindForgeGeneration.resetProvider();
 1. `js/workspace.js` validates the form and calls `MindForgeGeneration.generate`.
 2. `js/generation.js` posts `{ topic, notes, answerStyle, difficulty }` to `POST /api/generate` and checks `response.ok`.
 3. `backend/app/main.py` validates the request with Pydantic and calls `GeminiGenerationService`.
-4. `backend/app/services/generation.py` reads `GEMINI_API_KEY` and `GEMINI_MODEL` from the server environment, builds a prompt with the notes marked as untrusted study material, and calls Gemini's Interactions API with a JSON response schema.
-5. Gemini's output is parsed as JSON and validated with `GenerateResponse`. Exactly five questions, four non-empty options each, an answer index from 0–3 and non-empty explanations/concepts/flashcards are enforced.
-6. Only validated study material is returned. Provider failures map to safe HTTP errors; raw provider details, notes and keys are never returned.
-7. The frontend re-validates the payload against the runtime contract, renders it and saves it to History.
+4. `backend/app/services/generation.py` reads `GEMINI_API_KEY` and `GEMINI_MODEL` from the server environment, builds a prompt that treats the notes as the primary source and untrusted study material, and calls Gemini's Interactions API with a JSON response schema.
+5. Gemini's output is parsed as JSON, validated with `GenerateResponse`, then checked by `backend/app/services/quality.py` for non-empty/meaningful content, exactly five distinct questions, duplicate questions/cards/options and thin explanations or summaries.
+6. If the first response is malformed, truncated or fails a quality check, the service makes **one** bounded repair request. The repair repeats the original task and notes without echoing the invalid output. There is no repair loop and no mock fallback.
+7. Only validated study material is returned. Provider failures map to safe HTTP errors; raw provider details, notes and keys are never returned.
+8. The frontend re-validates the payload against the runtime contract, renders it and saves it to History.
 
 ### Validation and diagnostics
 
 - Request validation returns per-field errors (`required`, `too-long`, `invalid-setting`) and trimmed values.
-- Response validation checks summary text and concepts, exactly five quiz questions, four non-empty options each, integer `correctAnswer` values from 0 through 3, non-empty explanations, and non-empty flashcards with both faces.
+- Response validation checks summary text and concepts, exactly five quiz questions, four non-empty options each, strict integer `correctAnswer` values from 0 through 3 (booleans and numeric strings are rejected), non-empty explanations, and non-empty flashcards with both faces.
+- Semantic quality checks require a substantive summary (at least 40 characters), 3–10 distinct key concepts, 3–12 distinct flashcards, question text and explanations above a minimum length, no duplicate options, and no duplicate or near-duplicate question stems or flashcard fronts.
+- Invalid, truncated, empty, over/under-counted or semantically weak responses trigger at most one repair attempt. If repair also fails, the API returns a safe `502 invalid_provider_response`; partial output is never rendered or saved. The frontend shows this as an unusable-result error with a retry, distinct from a network outage.
 - Invalid responses surface a plain-language error and are never saved or partially rendered. Safe diagnostics (error paths/codes and the received top-level shape) are retained in `MindForgeWorkspace.getLastDiagnostics()`; raw provider errors and note contents are not exposed.
 - Legacy Phase 0 records (`summary.overview`/`keyPoints`, `quiz.questions[].prompt`/`answerIndex`) are migrated to the current contract when History reads them.
+
+> Schema and semantic validation check structure and repetition, not factual truth. They cannot prove that every question has exactly one defensible answer; the prompt instructs Gemini to achieve that, and a human review remains the reliable way to verify facts.
 
 ## How the interactive result works
 
@@ -297,7 +302,8 @@ MindForge/
 │   │   ├── main.py               # FastAPI app, CORS, error mapping, /api endpoints
 │   │   ├── schemas.py            # Pydantic request/response contract
 │   │   └── services/
-│   │       └── generation.py     # Gemini client, prompt, retries and validation
+│   │       ├── generation.py     # Gemini client, prompt, retries, repair and validation
+│   │       └── quality.py        # Semantic quality and duplicate-content checks
 │   ├── tests/                    # Backend API and Gemini service tests (SDK mocked)
 │   ├── .env.example              # Placeholders only; copy to .env
 │   └── requirements.txt
@@ -321,12 +327,14 @@ The backend suite mocks the Gemini SDK. It does not need a real API key, does no
 
 - Valid Gemini output returned through `POST /api/generate`.
 - Request parameters sent to Gemini, including the model, topic, notes, answer style, difficulty, system instruction and JSON schema.
-- Exactly five validated quiz questions and schema violations.
-- Invalid JSON, non-object JSON and empty provider responses.
+- Exactly five validated quiz questions and schema violations, including missing fields, wrong types, boolean/string/float answer indices, wrong option counts and empty flashcards.
+- Invalid JSON, truncated JSON, non-object JSON and empty provider responses.
+- Successful repair after malformed output, and a failed repair that is capped at exactly one extra call.
+- Semantic quality failures: short summaries/explanations, duplicate options, duplicate or near-duplicate questions and flashcards, and too few/many concepts or cards.
 - Missing API key, missing/invalid model configuration.
 - Provider authentication errors, rate limits/quota, timeouts, network failures and provider 5xx responses.
 - Bounded retries for transient failures and no retries for authentication, rate limits or validation failures.
-- Safe HTTP responses that do not leak keys, notes, provider messages or stack traces.
+- Safe HTTP responses that do not leak keys, notes, provider messages or stack traces, and never substitute mock material.
 - Preservation of the existing response schema.
 
 ### Frontend
@@ -337,11 +345,11 @@ The contract, frontend generation service, mock fixture and legacy migration are
 node --test tests/contract.test.mjs
 ```
 
-The suite covers valid and trimmed requests, whitespace-only input, configured over-limit input, invalid answer style/difficulty, the response contract, every response-validation rule, provider failure diagnostics and legacy Phase 0 migration.
+The suite covers valid and trimmed requests, whitespace-only input, configured over-limit input, invalid answer style/difficulty, the response contract, every response-validation rule, provider failure diagnostics, the exact backend URL, no silent mock fallback and legacy Phase 0 migration.
 
 ### Real provider smoke test
 
-The automated tests are mocked. To verify real Gemini generation, configure a valid `GEMINI_API_KEY` and `GEMINI_MODEL` in `backend/.env`, start the backend, and run the `curl` request under [Test generation](#4-test-generation), or generate from the UI. Only that manual/real check exercises the live provider.
+The automated tests are mocked. To verify real Gemini generation, configure a valid `GEMINI_API_KEY` and `GEMINI_MODEL` in `backend/.env`, start the backend, and run the `curl` request under [Test generation](#4-test-generation), or generate from the UI. Only that manual/real check exercises the live provider. Check the returned summary, concepts, five questions, explanations and flashcards for accuracy; automated validation cannot judge factual correctness.
 
 ### Manual checklist
 
@@ -360,7 +368,7 @@ The automated tests are mocked. To verify real Gemini generation, configure a va
 
 ## Scope for this part
 
-Phase 3.1 replaces the backend mock with server-side Gemini generation while preserving the existing `POST /api/generate` request/response contract, frontend UI and local History/Progress features. It adds secure environment configuration, prompt-injection guidance, structured output, Pydantic validation, bounded retries, safe HTTP error mapping, mocked automated tests and this documentation. Work stops here; no additional phases are included.
+Phase 3.1 replaced the backend mock with server-side Gemini generation while preserving the existing `POST /api/generate` request/response contract, frontend UI and local History/Progress features. Phase 3.2 improves prompt quality, adds semantic quality gates, strict answer-index typing and one bounded repair attempt, with mocked automated tests and documentation. Work stops here; no additional phases are included.
 
 ## Notes
 

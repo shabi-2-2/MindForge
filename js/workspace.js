@@ -535,6 +535,16 @@
       };
     }
 
+    if (code === 'invalid-provider-response') {
+      return {
+        title: 'Gemini returned an unusable result.',
+        message:
+          message ||
+          'The generated study material did not pass validation. Your notes are safe — try again.',
+        recoverable: true
+      };
+    }
+
     if (code === 'configuration-error') {
       return {
         title: 'Gemini is not configured.',

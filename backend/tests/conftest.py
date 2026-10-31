@@ -9,6 +9,64 @@ from app.services.generation import GeminiGenerationService
 
 
 def sample_payload():
+    questions = [
+        {
+            "question": "What is the main energy conversion in photosynthesis?",
+            "options": [
+                "Light energy to chemical energy",
+                "Chemical energy to light energy",
+                "Heat energy to mechanical energy",
+                "Chemical energy to mechanical energy",
+            ],
+            "correctAnswer": 0,
+            "explanation": (
+                "Photosynthesis stores light energy as chemical energy in glucose."
+            ),
+        },
+        {
+            "question": "Which gas do plants take in during photosynthesis?",
+            "options": ["Oxygen", "Carbon dioxide", "Nitrogen", "Hydrogen"],
+            "correctAnswer": 1,
+            "explanation": (
+                "Plants use carbon dioxide as the carbon source for glucose."
+            ),
+        },
+        {
+            "question": "Where in the plant cell does photosynthesis mainly occur?",
+            "options": ["Mitochondria", "Nucleus", "Chloroplasts", "Ribosomes"],
+            "correctAnswer": 2,
+            "explanation": (
+                "Chloroplasts contain chlorophyll and the photosynthetic machinery."
+            ),
+        },
+        {
+            "question": "What role does chlorophyll play in photosynthesis?",
+            "options": [
+                "It absorbs light energy",
+                "It stores water",
+                "It copies DNA",
+                "It breaks down glucose",
+            ],
+            "correctAnswer": 0,
+            "explanation": (
+                "Chlorophyll absorbs the light used by the light-dependent reactions."
+            ),
+        },
+        {
+            "question": "What do the light-dependent reactions produce?",
+            "options": [
+                "Glucose and oxygen",
+                "ATP and NADPH",
+                "Carbon dioxide and water",
+                "Proteins and lipids",
+            ],
+            "correctAnswer": 1,
+            "explanation": (
+                "The light reactions produce ATP and NADPH for the Calvin cycle."
+            ),
+        },
+    ]
+
     return {
         "summary": {
             "text": (
@@ -17,23 +75,27 @@ def sample_payload():
             ),
             "keyConcepts": ["Light reactions", "Calvin cycle", "Chlorophyll"],
         },
-        "quiz": [
-            {
-                "question": f"Question {index + 1} about photosynthesis?",
-                "options": [
-                    f"Option A for question {index + 1}",
-                    f"Option B for question {index + 1}",
-                    f"Option C for question {index + 1}",
-                    f"Option D for question {index + 1}",
-                ],
-                "correctAnswer": index % 4,
-                "explanation": f"Explanation for question {index + 1}.",
-            }
-            for index in range(5)
-        ],
+        "quiz": questions,
         "flashcards": [
-            {"front": "What is photosynthesis?", "back": "Converting light to chemical energy."},
-            {"front": "Where does it happen?", "back": "In chloroplasts."},
+            {
+                "front": "What is photosynthesis?",
+                "back": (
+                    "The conversion of light energy into chemical energy stored "
+                    "in glucose."
+                ),
+            },
+            {
+                "front": "Where does photosynthesis occur?",
+                "back": "Mainly in the chloroplasts of plant cells.",
+            },
+            {
+                "front": "What does chlorophyll do?",
+                "back": "It absorbs light energy for the light-dependent reactions.",
+            },
+            {
+                "front": "What does the Calvin cycle produce?",
+                "back": "It fixes carbon dioxide into glucose using ATP and NADPH.",
+            },
         ],
     }
 
