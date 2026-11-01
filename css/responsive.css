@@ -21,12 +21,17 @@
     padding: var(--space-5) var(--space-4) var(--space-5);
     transform: translateX(-102%);
     box-shadow: none;
-    transition: transform 320ms var(--ease), box-shadow 320ms var(--ease);
+    /* visibility keeps the closed drawer out of the tab order in browsers
+       without inert support; it stays visible for the slide-out transition. */
+    visibility: hidden;
+    transition: transform 320ms var(--ease), box-shadow 320ms var(--ease),
+      visibility 320ms;
   }
 
   .sidebar.is-open {
     transform: translateX(0);
     box-shadow: var(--shadow-lg);
+    visibility: visible;
   }
 
   .sidebar__close {

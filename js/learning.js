@@ -154,7 +154,7 @@
         config.difficultyLabel +
         ' difficulty'
     );
-    lines.push('Generated locally in the browser. No AI service was used.');
+    lines.push('Generated with Google Gemini via the MindForge server.');
 
     return lines.join('\n');
   }
@@ -662,8 +662,24 @@
     }
   }
 
+  function findCard(cardId) {
+    if (!flashcardList) {
+      return null;
+    }
+
+    var cards = flashcardList.querySelectorAll('[data-card-id]');
+
+    for (var index = 0; index < cards.length; index += 1) {
+      if (cards[index].getAttribute('data-card-id') === cardId) {
+        return cards[index];
+      }
+    }
+
+    return null;
+  }
+
   function setCardMastery(cardId, value) {
-    var card = flashcardList && flashcardList.querySelector('[data-card-id="' + cardId + '"]');
+    var card = findCard(cardId);
 
     if (!card) {
       return;

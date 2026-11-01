@@ -1060,7 +1060,57 @@
     }
   }
 
-  function deleteSavedGeneration(id) {
+  function savedRowIndex(trigger) {
+    var list = $('[data-saved-generations]');
+
+    if (!list || !trigger || typeof trigger.closest !== 'function') {
+      return -1;
+    }
+
+    var row = trigger.closest('.saved-row');
+
+    if (!row) {
+      return -1;
+    }
+
+    return Array.prototype.indexOf.call(
+      list.querySelectorAll('.saved-row'),
+      row
+    );
+  }
+
+  function focusAfterDelete(index) {
+    var list = $('[data-saved-generations]');
+    var rows = list
+      ? Array.prototype.slice.call(list.querySelectorAll('.saved-row'))
+      : [];
+    var target = null;
+
+    if (rows.length) {
+      var nextIndex = index < 0 ? 0 : Math.min(index, rows.length - 1);
+      target =
+        rows[nextIndex].querySelector('[data-saved-open]') ||
+        rows[nextIndex].querySelector('button');
+    }
+
+    if (!target) {
+      target = $('[data-history-search]');
+    }
+
+    if (!target) {
+      target = $('[data-action="create-session"]');
+    }
+
+    if (target) {
+      try {
+        target.focus({ preventScroll: true });
+      } catch (error) {
+        target.focus();
+      }
+    }
+  }
+
+  function deleteSavedGeneration(id, trigger) {
     if (!history) {
       showToast('History is not available in this browser.');
       return;
@@ -1075,6 +1125,9 @@
     }
 
     var label = recordTitle(record);
+    // Capture the row position while the trigger is still connected: removing
+    // the record re-renders the list, which detaches the clicked row.
+    var rowIndex = savedRowIndex(trigger);
 
     if (
       typeof global.confirm === 'function' &&
@@ -1095,6 +1148,7 @@
       return;
     }
 
+    focusAfterDelete(rowIndex);
     showToast('Removed “' + label + '” from History.');
   }
 
@@ -1137,20 +1191,28 @@
     }
   }
 
+  function renderFiltered() {
+    var records = getRecords();
+    var visible = filteredRecords(records);
+
+    renderHistoryArchive(records, visible);
+    renderSavedGenerations(records, visible);
+  }
+
   function bindFilters() {
     var search = $('[data-history-search]');
 
     if (search) {
       search.addEventListener('input', function () {
         syncFilters();
-        renderAll();
+        renderFiltered();
       });
     }
 
     $all('[data-history-filter]').forEach(function (control) {
       control.addEventListener('change', function () {
         syncFilters();
-        renderAll();
+        renderFiltered();
       });
     });
   }
@@ -1200,7 +1262,10 @@
 
       if (deleteTrigger) {
         event.preventDefault();
-        deleteSavedGeneration(deleteTrigger.getAttribute('data-saved-delete'));
+        deleteSavedGeneration(
+          deleteTrigger.getAttribute('data-saved-delete'),
+          deleteTrigger
+        );
       }
     });
 

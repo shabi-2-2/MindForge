@@ -2817,6 +2817,11 @@ main:focus {
   outline: none;
 }
 
+.study-result-panel:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
 .study-result-panel[hidden] {
   display: none;
 }
@@ -3600,6 +3605,7 @@ main:focus {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .progress-saved-row__main strong {
@@ -3762,7 +3768,12 @@ main:focus {
 
 .progress-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
+}
+
+.progress-layout > * {
+  min-width: 0;
 }
 
 .progress-preview {

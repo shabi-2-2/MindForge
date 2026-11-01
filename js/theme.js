@@ -108,11 +108,18 @@
     });
   });
 
-  systemQuery.addEventListener('change', function (event) {
+  function handleSystemChange(event) {
     if (!hasExplicitPreference) {
       announce(event.matches ? 'dark' : 'light', false);
     }
-  });
+  }
+
+  if (typeof systemQuery.addEventListener === 'function') {
+    systemQuery.addEventListener('change', handleSystemChange);
+  } else if (typeof systemQuery.addListener === 'function') {
+    // Older Safari only exposes the deprecated addListener API.
+    systemQuery.addListener(handleSystemChange);
+  }
 
   global.addEventListener('storage', function (event) {
     if (event.key !== 'mindforge:theme') {

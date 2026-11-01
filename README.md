@@ -2,7 +2,7 @@
 
 **Shape the way you learn.**
 
-A premium study workspace for deliberate learning. Phase 0 delivered the dashboard foundation — visual system, navigation, theme persistence, study statistics, recent sessions and activity visualisation. Part 2 added the Study Workspace and local mock generation. Part 3 made the generated material interactive: a readable summary, a five-question scored quiz, flip flashcards, saved generations and progress derived from your own answers. Phase 1 hardened that workflow with explicit generation states, configurable input limits and runtime response validation. Phase 2 moved generation behind a FastAPI backend. **Phase 3.1 replaced the backend mock with real server-side Google Gemini generation**, and **Phase 3.2 improves prompt quality, adds semantic quality gates and one bounded repair attempt**, while keeping the existing API and frontend contract. **Phase 4 hardens browser-local persistence and History** with versioned schemas, data-safe migration, note de-duplication, search and filters, and analytics derived only from saved records.
+A premium study workspace for deliberate learning. Phase 0 delivered the dashboard foundation — visual system, navigation, theme persistence, study statistics, recent sessions and activity visualisation. Part 2 added the Study Workspace and local mock generation. Part 3 made the generated material interactive: a readable summary, a five-question scored quiz, flip flashcards, saved generations and progress derived from your own answers. Phase 1 hardened that workflow with explicit generation states, configurable input limits and runtime response validation. Phase 2 moved generation behind a FastAPI backend. **Phase 3.1 replaced the backend mock with real server-side Google Gemini generation**, and **Phase 3.2 improves prompt quality, adds semantic quality gates and one bounded repair attempt**, while keeping the existing API and frontend contract. **Phase 4 hardens browser-local persistence and History** with versioned schemas, data-safe migration, note de-duplication, search and filters, and analytics derived only from saved records. **Phase 5 polishes the existing interface** with responsive overflow fixes, keyboard and focus repairs, status announcements, safer handling of untrusted flashcard IDs, reduced-motion coverage and a focused UI regression suite.
 
 The frontend is still plain HTML, CSS and vanilla JavaScript with no framework and no build step. The browser calls only the MindForge FastAPI backend; the API key and Gemini calls stay on the server.
 
@@ -367,7 +367,8 @@ MindForge/
 │   └── requirements.txt
 ├── tests/
 │   ├── contract.test.mjs         # Frontend contract, generation metadata and migration tests
-│   └── persistence.test.mjs      # Storage, schema, duplicate, filter and analytics tests
+│   ├── persistence.test.mjs      # Storage, schema, duplicate, filter and analytics tests
+│   └── ui-regression.test.mjs    # Phase 5 responsive, focus, copy and safety contracts
 ├── .gitignore
 └── README.md
 ```
@@ -421,6 +422,8 @@ node --test tests/*.test.mjs
 - Repeated attempts and scoring being counted once per saved record.
 - Empty history producing zero/`null` analytics and an empty activity baseline.
 
+`tests/ui-regression.test.mjs` adds static and contract-level checks for the Phase 5 fixes. It verifies the Progress grid containment rules, the corrected Gemini copy, quoted/backslash IDs surviving the contract unchanged, selector-free flashcard lookup, filter-only History re-rendering, delete-focus restoration (row position captured before the record is removed), the visible keyboard focus ring on result tabpanels, drawer links leaving the tab order without `inert`, the MediaQueryList listener fallback in the theme controller, live status regions, reduced-motion CSS and text-only rendering of untrusted study content. Run all frontend suites with `node --test tests/*.test.mjs`; the current total is 58 passing tests.
+
 ### Real provider smoke test
 
 The automated tests are mocked. To verify real Gemini generation, configure a valid `GEMINI_API_KEY` and `GEMINI_MODEL` in `backend/.env`, start the backend, and run the `curl` request under [Test generation](#4-test-generation), or generate from the UI. Only that manual/real check exercises the live provider. Check the returned summary, concepts, five questions, explanations and flashcards for accuracy; automated validation cannot judge factual correctness.
@@ -445,6 +448,13 @@ The automated tests are mocked. To verify real Gemini generation, configure a va
 16. Clear all saved sessions: statistics show `0`/`—`, the activity chart is empty and the streak reads `0` without fabricated data.
 17. Check the workspace, result tabs and History at 375px width: no horizontal overflow, including the filter toolbar.
 18. Confirm DevTools shows requests only to the MindForge backend, never to Google Gemini, and that no key appears in the browser or console.
+19. Save at least one session, open Progress and resize from 320px to desktop: the preview, stat cards and saved rows must stay inside the viewport, with long topics ellipsized rather than widening the page.
+20. Delete a saved session with the keyboard: focus moves to the next saved row's Open button, or to the History search field when the list becomes empty. The toast announces the removal.
+21. Generate a session, copy and download the summary: the footer names Google Gemini via the MindForge server, not local generation.
+22. Mark a flashcard known and reopen the saved session: mastery is retained. Provider IDs containing quotes or backslashes must not break the controls.
+23. At 390px width, open the navigation drawer: focus lands on Close, Tab wraps inside the drawer, Escape closes it and returns focus to the menu button.
+24. Enable the OS "reduce motion" setting: transitions and smooth scrolling are effectively disabled while all controls still work.
+25. Switch themes on every view: focus rings, muted labels and status messages remain readable in both light and dark themes.
 
 ## Scope for this part
 
