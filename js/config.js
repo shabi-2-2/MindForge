@@ -19,7 +19,7 @@
   'use strict';
 
   global.MINDFORGE_CONFIG = Object.freeze({
-    // Production Render backend base URL (e.g. 'https://<your-render-service>.onrender.com')
-    apiBaseUrl: ''
+    // Production Render backend base URL
+    apiBaseUrl: 'https://mindforge-api-85fh.onrender.com'
   });
 })(typeof window !== 'undefined' ? window : this);
