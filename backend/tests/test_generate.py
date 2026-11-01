@@ -1,6 +1,8 @@
 import json
 
 import pytest
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 from google.genai import errors as genai_errors
 
@@ -325,6 +327,44 @@ def test_cors_preflight_rejects_untrusted_origin(api_client):
 
     assert response.status_code == 400
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_production_cors_preflight_allows_configured_vercel_origin():
+    production_origin = "https://mindforge-app.vercel.app"
+    test_app = FastAPI()
+    test_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[production_origin],
+        allow_origin_regex=None,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
+    test_app.include_router(app.router)
+
+    with TestClient(test_app) as client:
+        # Preflight OPTIONS /api/generate with exact required headers
+        response = preflight(
+            client,
+            origin=production_origin,
+            method="POST",
+            headers="content-type",
+        )
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == production_origin
+        assert "POST" in response.headers["access-control-allow-methods"]
+        assert "content-type" in response.headers["access-control-allow-headers"].lower()
+        assert "access-control-allow-credentials" not in response.headers
+
+        # Unapproved origin must not receive permission
+        unapproved_response = preflight(
+            client,
+            origin="https://unapproved-origin.example",
+            method="POST",
+            headers="content-type",
+        )
+        assert unapproved_response.status_code == 400
+        assert "access-control-allow-origin" not in unapproved_response.headers
 
 
 def test_cors_actual_post_includes_allow_origin(api_client, make_service, valid_payload):

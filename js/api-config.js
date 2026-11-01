@@ -58,6 +58,78 @@
     );
   }
 
+  function isValidProductionUrl(url) {
+    if (!url || typeof url !== 'string') {
+      return false;
+    }
+    var trimmed = url.trim();
+    if (!trimmed) {
+      return false;
+    }
+
+    // Must strictly start with https:// (case-insensitive, rejects http:// and malformed schemes)
+    if (!/^https:\/\//i.test(trimmed)) {
+      return false;
+    }
+
+    // Reject loopback strings early
+    if (isLoopbackUrl(trimmed)) {
+      return false;
+    }
+
+    var URLConstructor =
+      typeof URL !== 'undefined'
+        ? URL
+        : typeof global !== 'undefined' && global.URL
+        ? global.URL
+        : null;
+
+    if (URLConstructor) {
+      try {
+        var parsed = new URLConstructor(trimmed);
+        if (parsed.protocol !== 'https:') {
+          return false;
+        }
+        var hostname = parsed.hostname;
+        if (!hostname || isLoopbackHost(hostname)) {
+          return false;
+        }
+        // Hostname must contain at least one dot separating domain labels (e.g., example.com)
+        if (
+          hostname.indexOf('.') === -1 ||
+          hostname.startsWith('.') ||
+          hostname.endsWith('.') ||
+          hostname.indexOf('..') !== -1
+        ) {
+          return false;
+        }
+        // Basic label validation (alphanumeric and hyphens, no leading/trailing hyphens)
+        var labels = hostname.split('.');
+        for (var i = 0; i < labels.length; i++) {
+          if (!labels[i] || !/^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(labels[i])) {
+            return false;
+          }
+        }
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    // Fallback regex if URL constructor is not present
+    var match = trimmed.match(
+      /^https:\/\/([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+)(?::\d{1,5})?(?:\/.*)?$/i
+    );
+    if (!match) {
+      return false;
+    }
+    var host = match[1].toLowerCase();
+    if (isLoopbackHost(host)) {
+      return false;
+    }
+    return true;
+  }
+
   function getConfiguredProductionUrl() {
     // 1. Check window.MINDFORGE_CONFIG.apiBaseUrl
     try {
@@ -103,18 +175,19 @@
     }
 
     // In production (deployed site on Vercel or custom domain):
-    // Rule: NEVER make a request to localhost from the deployed production site!
-    if (override && !isLoopbackUrl(override)) {
+    // Rule: Must be a valid HTTPS production URL.
+    // Never allow HTTP, loopback, or malformed URLs in production.
+    if (override && isValidProductionUrl(override)) {
       return override.replace(/\/+$/, '');
     }
 
     var prodUrl = getConfiguredProductionUrl();
-    if (prodUrl && !isLoopbackUrl(prodUrl)) {
+    if (prodUrl && isValidProductionUrl(prodUrl)) {
       return prodUrl.replace(/\/+$/, '');
     }
 
-    // If running in production and no public production URL has been configured,
-    // return an empty string so callers can fail cleanly rather than hitting localhost.
+    // If running in production and no valid public HTTPS production URL has been configured,
+    // return an empty string so callers can fail cleanly rather than hitting an unsafe URL.
     return '';
   }
 
@@ -135,6 +208,7 @@
     setApiBaseUrl: setApiBaseUrl,
     isLocalEnvironment: isLocalEnvironment,
     isLoopbackUrl: isLoopbackUrl,
+    isValidProductionUrl: isValidProductionUrl,
     DEFAULT_API_BASE_URL: DEFAULT_LOCAL_API_BASE_URL,
     DEFAULT_LOCAL_API_BASE_URL: DEFAULT_LOCAL_API_BASE_URL,
     PRODUCTION_API_BASE_URL: PRODUCTION_API_BASE_URL

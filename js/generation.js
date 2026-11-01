@@ -247,19 +247,28 @@
     if (
       global.MindForgeApiConfig &&
       typeof global.MindForgeApiConfig.isLocalEnvironment === 'function' &&
-      !global.MindForgeApiConfig.isLocalEnvironment() &&
-      typeof global.MindForgeApiConfig.isLoopbackUrl === 'function' &&
-      global.MindForgeApiConfig.isLoopbackUrl(baseUrl)
+      !global.MindForgeApiConfig.isLocalEnvironment()
     ) {
-      return Promise.reject(
-        new GenerationError(
-          'Cannot make requests to localhost from a deployed production site. Configure your public Render backend URL in js/config.js.',
-          {
-            code: ERROR_CODES.CONFIGURATION_ERROR,
-            recoverable: false
-          }
-        )
-      );
+      var isProductionValid =
+        typeof global.MindForgeApiConfig.isValidProductionUrl === 'function'
+          ? global.MindForgeApiConfig.isValidProductionUrl(baseUrl)
+          : /^https:\/\//i.test(baseUrl) &&
+            !(
+              typeof global.MindForgeApiConfig.isLoopbackUrl === 'function' &&
+              global.MindForgeApiConfig.isLoopbackUrl(baseUrl)
+            );
+
+      if (!isProductionValid) {
+        return Promise.reject(
+          new GenerationError(
+            'Production backend API must use a valid HTTPS URL. Check your Render backend URL in js/config.js.',
+            {
+              code: ERROR_CODES.CONFIGURATION_ERROR,
+              recoverable: false
+            }
+          )
+        );
+      }
     }
 
     var url = baseUrl.replace(/\/+$/, '') + '/api/generate';

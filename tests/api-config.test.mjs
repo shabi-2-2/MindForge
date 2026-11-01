@@ -23,6 +23,7 @@ function createEnvironment(options = {}) {
     Promise,
     String,
     TypeError,
+    URL: typeof URL !== 'undefined' ? URL : undefined,
     clearTimeout,
     console,
     isFinite,
@@ -64,65 +65,151 @@ function createEnvironment(options = {}) {
   return context;
 }
 
-test('local environment defaults to http://127.0.0.1:8000', () => {
-  const env = createEnvironment({
-    location: { hostname: 'localhost', protocol: 'http:' }
-  });
-
-  assert.equal(env.MindForgeApiConfig.isLocalEnvironment(), true);
-  assert.equal(env.MindForgeApiConfig.getApiBaseUrl(), 'http://127.0.0.1:8000');
-});
-
-test('local 127.0.0.1 and file: protocols are detected as local', () => {
-  const env1 = createEnvironment({
-    location: { hostname: '127.0.0.1', protocol: 'http:' }
-  });
-  assert.equal(env1.MindForgeApiConfig.isLocalEnvironment(), true);
-
-  const env2 = createEnvironment({
-    location: { hostname: '', protocol: 'file:' }
-  });
-  assert.equal(env2.MindForgeApiConfig.isLocalEnvironment(), true);
-});
-
-test('local environment allows localStorage override', () => {
-  const env = createEnvironment({
-    location: { hostname: 'localhost', protocol: 'http:' }
-  });
-
-  env.MindForgeApiConfig.setApiBaseUrl('http://127.0.0.1:9000/');
-  assert.equal(env.MindForgeApiConfig.getApiBaseUrl(), 'http://127.0.0.1:9000');
-});
-
-test('production environment detects remote domain and reads MINDFORGE_CONFIG', () => {
+test('1. valid HTTPS production API URL accepted', () => {
   const env = createEnvironment({
     location: { hostname: 'mindforge.vercel.app', protocol: 'https:' },
     configUrl: 'https://mindforge-api.onrender.com/'
   });
 
   assert.equal(env.MindForgeApiConfig.isLocalEnvironment(), false);
+  assert.equal(
+    env.MindForgeApiConfig.isValidProductionUrl('https://mindforge-api.onrender.com'),
+    true
+  );
   assert.equal(env.MindForgeApiConfig.getApiBaseUrl(), 'https://mindforge-api.onrender.com');
+
+  // Also via localStorage override
+  env.MindForgeApiConfig.setApiBaseUrl('https://custom-api.example.com');
+  assert.equal(env.MindForgeApiConfig.getApiBaseUrl(), 'https://custom-api.example.com');
 });
 
-test('production environment refuses to return localhost URL and prevents requests to localhost', () => {
+test('2. remote HTTP production URL rejected', () => {
+  const env = createEnvironment({
+    location: { hostname: 'mindforge.vercel.app', protocol: 'https:' },
+    configUrl: 'http://mindforge-api.onrender.com'
+  });
+
+  assert.equal(env.MindForgeApiConfig.isLocalEnvironment(), false);
+  assert.equal(
+    env.MindForgeApiConfig.isValidProductionUrl('http://mindforge-api.onrender.com'),
+    false
+  );
+  // Remote HTTP must be rejected and return empty string
+  assert.equal(env.MindForgeApiConfig.getApiBaseUrl(), '');
+
+  // LocalStorage override with remote HTTP must also be rejected
+  env.MindForgeApiConfig.setApiBaseUrl('http://insecure-api.example.com');
+  assert.equal(env.MindForgeApiConfig.getApiBaseUrl(), '');
+});
+
+test('3. localhost HTTP URL rejected in production', () => {
   const env = createEnvironment({
     location: { hostname: 'mindforge.vercel.app', protocol: 'https:' },
     configUrl: 'http://localhost:8000'
   });
 
   assert.equal(env.MindForgeApiConfig.isLocalEnvironment(), false);
-  // Must NOT return localhost on production!
+  assert.equal(env.MindForgeApiConfig.isValidProductionUrl('http://localhost:8000'), false);
+  assert.equal(env.MindForgeApiConfig.isValidProductionUrl('https://localhost:8000'), false);
+  assert.equal(env.MindForgeApiConfig.isValidProductionUrl('http://127.0.0.1:8000'), false);
+  assert.equal(env.MindForgeApiConfig.getApiBaseUrl(), '');
+
+  // Localhost in localStorage override on production must be ignored
+  env.localStorage.setItem('mindforge:apiBaseUrl', 'http://127.0.0.1:8000');
   assert.equal(env.MindForgeApiConfig.getApiBaseUrl(), '');
 });
 
-test('production environment ignores localhost in localStorage override', () => {
+test('4. invalid or malformed URL rejected', () => {
   const env = createEnvironment({
-    location: { hostname: 'mindforge.vercel.app', protocol: 'https:' },
-    configUrl: ''
+    location: { hostname: 'mindforge.vercel.app', protocol: 'https:' }
   });
 
-  env.localStorage.setItem('mindforge:apiBaseUrl', 'http://127.0.0.1:8000');
+  const malformed = [
+    '',
+    '   ',
+    'not-a-url',
+    'javascript:alert(1)',
+    'ftp://api.example.com',
+    'https://',
+    'https://.com',
+    'https://example',
+    'https://foo..bar',
+    null,
+    undefined
+  ];
+
+  for (const candidate of malformed) {
+    assert.equal(
+      env.MindForgeApiConfig.isValidProductionUrl(candidate),
+      false,
+      `Should reject malformed URL: ${candidate}`
+    );
+  }
+
+  // Setting malformed URL in config returns empty string
+  env.window.MINDFORGE_CONFIG = { apiBaseUrl: 'not-a-valid-url' };
   assert.equal(env.MindForgeApiConfig.getApiBaseUrl(), '');
+});
+
+test('5. local development still supports the local FastAPI URL', () => {
+  // Test localhost
+  const envLocalhost = createEnvironment({
+    location: { hostname: 'localhost', protocol: 'http:' }
+  });
+  assert.equal(envLocalhost.MindForgeApiConfig.isLocalEnvironment(), true);
+  assert.equal(envLocalhost.MindForgeApiConfig.getApiBaseUrl(), 'http://127.0.0.1:8000');
+
+  // Test 127.0.0.1
+  const env127 = createEnvironment({
+    location: { hostname: '127.0.0.1', protocol: 'http:' }
+  });
+  assert.equal(env127.MindForgeApiConfig.isLocalEnvironment(), true);
+  assert.equal(env127.MindForgeApiConfig.getApiBaseUrl(), 'http://127.0.0.1:8000');
+
+  // Test file: protocol
+  const envFile = createEnvironment({
+    location: { hostname: '', protocol: 'file:' }
+  });
+  assert.equal(envFile.MindForgeApiConfig.isLocalEnvironment(), true);
+  assert.equal(envFile.MindForgeApiConfig.getApiBaseUrl(), 'http://127.0.0.1:8000');
+
+  // Test local development localStorage override (e.g. custom port)
+  envLocalhost.MindForgeApiConfig.setApiBaseUrl('http://127.0.0.1:9000/');
+  assert.equal(envLocalhost.MindForgeApiConfig.getApiBaseUrl(), 'http://127.0.0.1:9000');
+});
+
+test('6. invalid runtime configuration cannot silently fall through to an unsafe URL', async () => {
+  const env = createEnvironment({
+    location: { hostname: 'mindforge.vercel.app', protocol: 'https:' },
+    configUrl: 'http://insecure-api.example.com'
+  });
+
+  // Must not fall back to local URL or the insecure HTTP URL
+  assert.equal(env.MindForgeApiConfig.getApiBaseUrl(), '');
+
+  let fetchCalled = false;
+  env.fetch = () => {
+    fetchCalled = true;
+    return Promise.resolve({ ok: true });
+  };
+
+  await assert.rejects(
+    async () => {
+      await env.MindForgeGeneration.generate({
+        topic: 'Test Topic',
+        notes: 'These are valid study notes for testing validation.',
+        answerStyle: 'exam',
+        difficulty: 'medium'
+      });
+    },
+    (err) => {
+      assert.equal(err.code, 'configuration-error');
+      assert.match(err.message, /configured/i);
+      return true;
+    }
+  );
+
+  assert.equal(fetchCalled, false, 'fetch should not be called when production configuration is unsafe');
 });
 
 test('unconfigured production environment fails safely before making network call', async () => {
