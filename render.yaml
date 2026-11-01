@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: mindforge-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: APP_NAME
+        value: MindForge API
+      - key: APP_VERSION
+        value: 1.0.0
+      - key: API_PREFIX
+        value: /api
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CORS_ORIGIN_REGEX
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.6-flash
+      - key: GEMINI_TIMEOUT_SECONDS
+        value: "45"
+      - key: GEMINI_MAX_RETRIES
+        value: "2"

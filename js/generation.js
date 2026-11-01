@@ -231,7 +231,38 @@
 
   function apiProvider(input) {
     var baseUrl = getApiBaseUrl();
-    var url = baseUrl.replace(/\/$/, '') + '/api/generate';
+
+    if (!baseUrl) {
+      return Promise.reject(
+        new GenerationError(
+          'Production backend API URL is not configured. Please set your Render backend URL in js/config.js.',
+          {
+            code: ERROR_CODES.CONFIGURATION_ERROR,
+            recoverable: false
+          }
+        )
+      );
+    }
+
+    if (
+      global.MindForgeApiConfig &&
+      typeof global.MindForgeApiConfig.isLocalEnvironment === 'function' &&
+      !global.MindForgeApiConfig.isLocalEnvironment() &&
+      typeof global.MindForgeApiConfig.isLoopbackUrl === 'function' &&
+      global.MindForgeApiConfig.isLoopbackUrl(baseUrl)
+    ) {
+      return Promise.reject(
+        new GenerationError(
+          'Cannot make requests to localhost from a deployed production site. Configure your public Render backend URL in js/config.js.',
+          {
+            code: ERROR_CODES.CONFIGURATION_ERROR,
+            recoverable: false
+          }
+        )
+      );
+    }
+
+    var url = baseUrl.replace(/\/+$/, '') + '/api/generate';
 
     return fetch(url, {
       method: 'POST',

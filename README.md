@@ -137,6 +137,15 @@ A successful response has exactly five quiz questions and follows the existing c
 
 Never commit `.env`. If a key is accidentally exposed, revoke it in Google AI Studio and create a new one.
 
+## Deploy to Production (Vercel + Render)
+
+MindForge is designed for a decoupled production architecture:
+- **Frontend**: Deployed on **Vercel** as static HTML/CSS/JavaScript with zero build step. Configured via `js/config.js` with your Render backend URL.
+- **Backend**: Deployed on **Render** as a Python Web Service (`uvicorn app.main:app --host 0.0.0.0 --port $PORT`) with `backend/` as the root directory, health checks on `/api/health`, and the `GEMINI_API_KEY` stored securely in Render environment variables.
+- **CORS Protection**: The Render backend restricts cross-origin calls to the configured Vercel production origin (`CORS_ORIGINS`). The static frontend enforces that a deployed production site will never make requests to `localhost`.
+
+See the complete step-by-step instructions in [DEPLOYMENT.md](file:///Users/shabihaidarrizvi/Documents/GitHub/MindForge/DEPLOYMENT.md).
+
 ## What is included
 
 - **Premium dashboard** with a welcome panel, daily focus dial, four derived statistics, recent sessions, a seven-day activity chart and a weekly goal ring.

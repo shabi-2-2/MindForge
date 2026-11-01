@@ -72,3 +72,27 @@ def test_cors_origins_are_trimmed_and_normalised(monkeypatch):
         "http://localhost:5500",
         "http://127.0.0.1:5501",
     ]
+
+
+def test_production_vercel_origin_configured_in_cors_origins(monkeypatch):
+    monkeypatch.setenv(
+        "CORS_ORIGINS",
+        "https://mindforge-app.vercel.app,http://localhost:5500",
+    )
+    settings = Settings()
+    assert "https://mindforge-app.vercel.app" in settings.cors_origins
+    assert "http://localhost:5500" in settings.cors_origins
+
+
+def test_preview_cors_regex_matches_vercel_preview_domains(monkeypatch):
+    preview_pattern = r"^https://mindforge-[a-z0-9-]+\.vercel\.app$"
+    monkeypatch.setenv("CORS_ORIGIN_REGEX", preview_pattern)
+
+    settings = Settings()
+    assert settings.cors_origin_regex == preview_pattern
+    pattern = re.compile(settings.cors_origin_regex)
+
+    assert pattern.fullmatch("https://mindforge-preview-1.vercel.app")
+    assert pattern.fullmatch("https://mindforge-feature-branch.vercel.app")
+    assert not pattern.fullmatch("https://other-project.vercel.app")
+    assert not pattern.fullmatch("https://evil.example")
